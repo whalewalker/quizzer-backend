@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String
+  password      String?
+  avatar        String?
+  googleId      String?  @unique
+  accessToken   String?
+  refreshToken  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  quizzes       Quiz[]
+  flashcardSets FlashcardSet[]
+  attempts      Attempt[]
+  streak        Streak?
+  leaderboard   LeaderboardEntry[]
+
+  @@map("users")
+}
+
+model Quiz {
+  id          String   @id @default(uuid())
+  title       String
+  topic       String
+  difficulty  String   @default("medium")
+  quizType    String   @default("standard") // "standard", "timed", "scenario"
+  timeLimit   Int?     // Time limit in seconds (for timed quizzes)
+  questions   Json     // Store questions array as JSON
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType  String?  // "text" or "file"
+  sourceFiles String[] // Array of file paths if generated from files
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attempts    Attempt[]
+
+  @@map("quizzes")
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model FlashcardSet {
+  id          String   @id @default(uuid())
+  title       String
+  topic       String
+  cards       Json     // Store flashcards array as JSON
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType  String?  // "text", "file", or "topic"
+  sourceFiles String[] // Array of file paths if generated from files
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attempts    Attempt[]
+
+  @@map("flashcard_sets")
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Streak {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentStreak    Int      @default(0)
+  longestStreak    Int      @default(0)
+  lastActivityDate DateTime @default(now())
+  totalXP          Int      @default(0)
+  level            Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("streaks")
+}
+
+model LeaderboardEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int      @default(0)
+  rank      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId])
+  @@map("leaderboard_entries")
+  @@index([score])
+  @@index([rank])
+}
+
+model Challenge {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  type        String   // "daily", "weekly", "monthly"
+  target      Int
+  reward      Int
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  completions ChallengeCompletion[]
+
+  @@map("challenges")
+  @@index([type])
+  @@index([endDate])
+}
+
+model ChallengeCompletion {
+  id          String    @id @default(uuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId      String
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([challengeId, userId])
+  @@map("challenge_completions")
+  @@index([userId])
+  @@index([completed])
+}
+
+model Attempt {
+  id             String        @id @default(uuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId         String?
+  flashcardSetId String?
+  type           String        // "quiz" or "flashcard"
+  score          Int?
+  totalQuestions Int?
+  answers        Json?         // Store user answers
+  completedAt    DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+
+  quiz           Quiz?         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  flashcardSet   FlashcardSet? @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
+
+  @@map("attempts")
+  @@index([userId])
+  @@index([quizId])
+  @@index([flashcardSetId])
+  @@index([completedAt])
+}
+
+model Recommendation {
+  id        String   @id @default(uuid())
+  userId    String
+  topic     String
+  reason    String
+  priority  String   // "high", "medium", "low"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, topic])
+  @@map("recommendations")
+  @@index([userId])
+  @@index([priority])
+}

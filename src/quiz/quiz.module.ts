@@ -1,0 +1,25 @@
+import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
+import { QuizController } from './quiz.controller';
+import { QuizService } from './quiz.service';
+import { QuizProcessor } from './quiz.processor';
+import { AiModule } from '../ai/ai.module';
+import { RecommendationModule } from '../recommendation/recommendation.module';
+import { StreakModule } from '../streak/streak.module';
+import { ChallengeModule } from '../challenge/challenge.module';
+
+@Module({
+  imports: [
+    BullModule.registerQueue({
+      name: 'quiz-generation',
+    }),
+    AiModule,
+    RecommendationModule,
+    StreakModule,
+    ChallengeModule,
+  ],
+  controllers: [QuizController],
+  providers: [QuizService, QuizProcessor],
+  exports: [QuizService],
+})
+export class QuizModule {}

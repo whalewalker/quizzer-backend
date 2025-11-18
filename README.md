@@ -1,3 +1,4 @@
+
 # Quizzer Backend
 
 NestJS + TypeScript + PostgreSQL + Prisma + LangChain + Google Gemini backend for the Quizzer application.
@@ -16,15 +17,15 @@ NestJS + TypeScript + PostgreSQL + Prisma + LangChain + Google Gemini backend fo
 
 ## Features
 
-- 🔐 **Google OAuth Authentication**
-- 🧠 **AI-Powered Quiz Generation** (from topic, text, or uploaded files)
-- 📇 **AI-Powered Flashcard Generation** (from topic, text, or uploaded files)
-- 🔥 **Learning Streak Tracking**
-- 🏆 **Global Leaderboard System**
-- 🎯 **Daily/Weekly/Monthly Challenges**
-- 📊 **Personalized Recommendations**
-- 📁 **File Upload Support** (text files for content-based generation)
-- 📝 **Attempt History & Analytics**
+- Google OAuth Authentication
+- AI-Powered Quiz Generation (from topic, text, or uploaded files)
+- AI-Powered Flashcard Generation (from topic, text, or uploaded files)
+- Learning Streak Tracking
+- Global Leaderboard System
+- Daily/Weekly/Monthly Challenges
+- Personalized Recommendations
+- File Upload Support (text files for content-based generation)
+- Attempt History & Analytics
 
 ## Getting Started
 

@@ -1,0 +1,114 @@
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { diskStorage } from 'multer';
+import { QuizService } from './quiz.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GenerateQuizDto, SubmitQuizDto } from './dto/quiz.dto';
+import { extname } from 'node:path';
+
+@ApiTags('Quizzes')
+@ApiBearerAuth()
+@Controller('quiz')
+@UseGuards(JwtAuthGuard)
+export class QuizController {
+  constructor(private readonly quizService: QuizService) {}
+
+  @Post('generate')
+  @ApiOperation({ summary: 'Generate a new quiz using AI' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Quiz successfully generated' })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @UseInterceptors(
+    FilesInterceptor('files', 5, {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `quiz-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        // Accept text files and PDFs
+        if (file.mimetype.startsWith('text/') || file.mimetype === 'application/pdf') {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException('Only text files and PDFs are allowed'),
+            false,
+          );
+        }
+      },
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB
+      },
+    }),
+  )
+  async generateQuiz(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: GenerateQuizDto,
+    @UploadedFiles() files?: Express.Multer.File[],
+  ) {
+    // Validate that at least one source is provided
+    if (!dto.topic && !dto.content && (!files || files.length === 0)) {
+      throw new BadRequestException(
+        'Please provide either a topic, content, or upload files',
+      );
+    }
+
+    return this.quizService.generateQuiz(userId, dto, files);
+  }
+
+  @Get('status/:jobId')
+  @ApiOperation({ summary: 'Check quiz generation job status' })
+  @ApiResponse({ status: 200, description: 'Job status' })
+  @ApiResponse({ status: 404, description: 'Job not found' })
+  async getJobStatus(
+    @Param('jobId') jobId: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.quizService.getJobStatus(jobId, userId);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all quizzes for current user' })
+  @ApiResponse({ status: 200, description: 'List of user quizzes' })
+  async getAllQuizzes(@CurrentUser('sub') userId: string) {
+    return this.quizService.getAllQuizzes(userId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get quiz by ID' })
+  @ApiResponse({ status: 200, description: 'Quiz details' })
+  @ApiResponse({ status: 404, description: 'Quiz not found' })
+  async getQuizById(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.quizService.getQuizById(id, userId);
+  }
+
+  @Post(':id/submit')
+  @ApiOperation({ summary: 'Submit quiz answers and get results' })
+  @ApiResponse({ status: 200, description: 'Quiz results' })
+  @ApiResponse({ status: 400, description: 'Invalid submission' })
+  async submitQuiz(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: SubmitQuizDto,
+  ) {
+    return this.quizService.submitQuiz(userId, id, dto);
+  }
+}
