@@ -50,6 +50,10 @@ export class QuizService {
       },
     );
 
+    // Invalidate quiz cache after new quiz is generated
+    const cacheKey = `quizzes:all:${userId}`;
+    await this.cacheManager.del(cacheKey);
+
     this.logger.log(`Quiz generation job created with ID: ${job.id}`);
     return {
       jobId: job.id,
