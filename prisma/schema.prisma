@@ -19,6 +19,9 @@ model User {
   googleId      String?  @unique
   accessToken   String?
   refreshToken  String?
+  schoolName    String?
+  grade         String?
+  preferences   Json?    // Store user preferences as JSON
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -27,6 +30,8 @@ model User {
   attempts      Attempt[]
   streak        Streak?
   leaderboard   LeaderboardEntry[]
+  contents      Content[]
+  highlights    Highlight[]
 
   @@map("users")
 }
@@ -174,4 +179,39 @@ model Recommendation {
   @@map("recommendations")
   @@index([userId])
   @@index([priority])
+}
+
+model Content {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   @db.Text
+  topic       String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  highlights  Highlight[]
+
+  @@map("contents")
+  @@index([userId])
+}
+
+model Highlight {
+  id        String   @id @default(uuid())
+  contentId String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  color     String   @default("yellow")
+  startOffset Int
+  endOffset   Int
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("highlights")
+  @@index([contentId])
+  @@index([userId])
 }

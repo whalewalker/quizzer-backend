@@ -1,46 +1,81 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsNotEmpty,
+  IsOptional,
+} from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export class SignupDto {
-  @ApiProperty({ example: 'john@example.com', description: 'User email address' })
+  @ApiProperty({
+    example: "john@example.com",
+    description: "User email address",
+  })
   @IsEmail()
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ example: 'password123', description: 'User password (min 6 characters)' })
+  @ApiProperty({
+    example: "password123",
+    description: "User password (min 6 characters)",
+  })
   @IsString()
   @MinLength(6)
   @IsNotEmpty()
   password: string;
 
-  @ApiProperty({ example: 'John Doe', description: 'User full name' })
+  @ApiProperty({ example: "John Doe", description: "User full name" })
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @ApiProperty({
+    example: "Lincoln High School",
+    description: "School name",
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  schoolName?: string;
+
+  @ApiProperty({
+    example: "10th Grade",
+    description: "Grade level",
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  grade?: string;
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'john@example.com', description: 'User email address' })
+  @ApiProperty({
+    example: "john@example.com",
+    description: "User email address",
+  })
   @IsEmail()
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ example: 'password123', description: 'User password' })
+  @ApiProperty({ example: "password123", description: "User password" })
   @IsString()
   @IsNotEmpty()
   password: string;
 }
 
 export class AuthResponseDto {
-  @ApiProperty({ description: 'User information' })
+  @ApiProperty({ description: "User information" })
   user: {
     id: string;
     email: string;
     name: string;
     avatar?: string;
+    schoolName?: string;
+    grade?: string;
     createdAt: Date;
   };
 
-  @ApiProperty({ description: 'JWT access token' })
+  @ApiProperty({ description: "JWT access token" })
   accessToken: string;
 }

@@ -1,18 +1,22 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
-import { SignupDto, LoginDto } from './dto/auth.dto';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { PrismaService } from "../prisma/prisma.service";
+import * as bcrypt from "bcrypt";
+import { SignupDto, LoginDto } from "./dto/auth.dto";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService,
+    private readonly jwtService: JwtService
   ) {}
 
   async signup(signupDto: SignupDto) {
-    const { email, password, name } = signupDto;
+    const { email, password, name, schoolName, grade } = signupDto;
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -20,7 +24,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException("User with this email already exists");
     }
 
     // Hash password
@@ -32,6 +36,8 @@ export class AuthService {
         email,
         password: hashedPassword,
         name,
+        schoolName,
+        grade,
       },
     });
 
@@ -47,14 +53,14 @@ export class AuthService {
     });
 
     if (!user?.password) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password ?? '');
+    const isPasswordValid = await bcrypt.compare(password, user.password ?? "");
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     return this.generateAuthResponse(user);
@@ -73,6 +79,8 @@ export class AuthService {
         email: user.email,
         name: user.name,
         avatar: user.avatar,
+        schoolName: user.schoolName,
+        grade: user.grade,
         createdAt: user.createdAt,
       },
       accessToken: this.jwtService.sign(payload),
@@ -87,6 +95,8 @@ export class AuthService {
         email: true,
         name: true,
         avatar: true,
+        schoolName: true,
+        grade: true,
         createdAt: true,
       },
     });
