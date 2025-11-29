@@ -10,29 +10,70 @@ import {
   CreateHighlightDto,
   UpdateContentDto,
 } from "./dto/content.dto";
+import { TaskService } from "../task/task.service";
+import { NotificationService } from "../notification/notification.service";
 
 @Injectable()
 export class ContentService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiService: AiService
+    private readonly aiService: AiService,
+    private readonly taskService: TaskService,
+    private readonly notificationService: NotificationService
   ) {}
 
   async generateFromTopic(userId: string, topic: string) {
-    // Use AI service to generate educational content
-    const generatedContent = await this.aiService.generateContent({
-      prompt: `Generate comprehensive educational content about: ${topic}. Include key concepts, explanations, and examples.`,
-      maxTokens: 2000,
-    });
+    const task = await this.taskService.createTask(
+      userId,
+      "CONTENT_GENERATION"
+    );
 
-    return this.prisma.content.create({
-      data: {
-        title: `${topic} - Study Material`,
-        content: generatedContent,
-        topic,
+    // Run in background
+    this.generateContentInBackground(userId, topic, task.id);
+
+    return { taskId: task.id };
+  }
+
+  private async generateContentInBackground(
+    userId: string,
+    topic: string,
+    taskId: string
+  ) {
+    try {
+      const generatedContent = await this.aiService.generateContent({
+        prompt: `Generate comprehensive educational content about: ${topic}. Include key concepts, explanations, and examples.`,
+        maxTokens: 2000,
+      });
+
+      const content = await this.prisma.content.create({
+        data: {
+          title: `${topic} - Study Material`,
+          content: generatedContent,
+          topic,
+          userId,
+        },
+      });
+
+      await this.taskService.updateTask(taskId, "COMPLETED", {
+        contentId: content.id,
+      });
+
+      await this.notificationService.sendNotification(
         userId,
-      },
-    });
+        "Content Generated",
+        `Your study material for "${topic}" is ready!`,
+        { contentId: content.id, type: "CONTENT_GENERATION" }
+      );
+    } catch (error) {
+      await this.taskService.updateTask(taskId, "FAILED", null, error.message);
+
+      await this.notificationService.sendNotification(
+        userId,
+        "Generation Failed",
+        `We couldn't generate content for "${topic}". Please try again.`,
+        { type: "CONTENT_GENERATION_ERROR" }
+      );
+    }
   }
 
   async createFromFile(userId: string, file: Express.Multer.File) {
@@ -86,16 +127,43 @@ export class ContentService {
     });
   }
 
-  async getContents(userId: string, topic?: string) {
-    return this.prisma.content.findMany({
-      where: {
-        userId,
-        ...(topic ? { topic } : {}),
+  async getContents(
+    userId: string,
+    topic?: string,
+    page: number = 1,
+    limit: number = 10
+  ) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.content.findMany({
+        where: {
+          userId,
+          ...(topic ? { topic } : {}),
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.content.count({
+        where: {
+          userId,
+          ...(topic ? { topic } : {}),
+        },
+      }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    };
   }
 
   async getContentById(userId: string, contentId: string) {
@@ -180,5 +248,21 @@ export class ContentService {
     return this.prisma.highlight.delete({
       where: { id: highlightId },
     });
+  }
+  async getPopularTopics() {
+    const topics = await this.prisma.content.groupBy({
+      by: ["topic"],
+      _count: {
+        topic: true,
+      },
+      orderBy: {
+        _count: {
+          topic: "desc",
+        },
+      },
+      take: 10,
+    });
+
+    return topics.map((t) => t.topic);
   }
 }

@@ -18,6 +18,8 @@ import { AttemptModule } from "./attempt/attempt.module";
 import { ContentModule } from "./content/content.module";
 import { StatisticsModule } from "./statistics/statistics.module";
 import { UserModule } from "./user/user.module";
+import { TaskModule } from "./task/task.module";
+import { NotificationModule } from "./notification/notification.module";
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { UserModule } from "./user/user.module";
     ContentModule,
     StatisticsModule,
     UserModule,
+    TaskModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

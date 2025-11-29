@@ -1,8 +1,21 @@
-import { IsString, IsInt, IsEnum, IsOptional, Min, Max, IsArray } from 'class-validator';
-import { Transform } from 'class-transformer';
+import {
+  IsString,
+  IsInt,
+  IsEnum,
+  IsOptional,
+  Min,
+  Max,
+  IsArray,
+} from "class-validator";
+import { Transform } from "class-transformer";
 
-export type QuizType = 'standard' | 'timed' | 'scenario';
-export type QuestionType = 'true-false' | 'single-select' | 'multi-select' | 'matching' | 'fill-blank';
+export type QuizType = "standard" | "timed" | "scenario";
+export type QuestionType =
+  | "true-false"
+  | "single-select"
+  | "multi-select"
+  | "matching"
+  | "fill-blank";
 
 export class GenerateQuizDto {
   @IsOptional()
@@ -13,17 +26,21 @@ export class GenerateQuizDto {
   @IsString()
   content?: string;
 
+  @IsOptional()
+  @IsString()
+  contentId?: string;
+
   @Transform(({ value }) => Number.parseInt(value, 10))
   @IsInt()
   @Min(3)
   @Max(50)
   numberOfQuestions: number;
 
-  @IsEnum(['easy', 'medium', 'hard'])
-  difficulty: 'easy' | 'medium' | 'hard';
+  @IsEnum(["easy", "medium", "hard"])
+  difficulty: "easy" | "medium" | "hard";
 
   @IsOptional()
-  @IsEnum(['standard', 'timed', 'scenario'])
+  @IsEnum(["standard", "timed", "scenario"])
   quizType?: QuizType;
 
   @IsOptional()
@@ -35,7 +52,10 @@ export class GenerateQuizDto {
 
   @IsOptional()
   @IsArray()
-  @IsEnum(['true-false', 'single-select', 'multi-select', 'matching', 'fill-blank'], { each: true })
+  @IsEnum(
+    ["true-false", "single-select", "multi-select", "matching", "fill-blank"],
+    { each: true }
+  )
   questionTypes?: QuestionType[];
 }
 

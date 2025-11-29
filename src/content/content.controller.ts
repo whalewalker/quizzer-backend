@@ -72,12 +72,28 @@ export class ContentController {
   @Get()
   @ApiOperation({ summary: "Get all content for user" })
   @ApiQuery({ name: "topic", required: false, description: "Filter by topic" })
+  @ApiQuery({ name: "page", required: false, description: "Page number" })
+  @ApiQuery({ name: "limit", required: false, description: "Items per page" })
   @ApiResponse({ status: 200, description: "List of contents" })
   async getContents(
     @CurrentUser("sub") userId: string,
-    @Query("topic") topic?: string
+    @Query("topic") topic?: string,
+    @Query("page") page: number = 1,
+    @Query("limit") limit: number = 10
   ) {
-    return this.contentService.getContents(userId, topic);
+    return this.contentService.getContents(
+      userId,
+      topic,
+      Number(page),
+      Number(limit)
+    );
+  }
+
+  @Get("popular-topics")
+  @ApiOperation({ summary: "Get popular topics" })
+  @ApiResponse({ status: 200, description: "List of popular topics" })
+  async getPopularTopics() {
+    return this.contentService.getPopularTopics();
   }
 
   @Get(":id")

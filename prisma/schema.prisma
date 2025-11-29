@@ -32,6 +32,8 @@ model User {
   leaderboard   LeaderboardEntry[]
   contents      Content[]
   highlights    Highlight[]
+  tasks         Task[]
+  fcmTokens     String[] @default([])
 
   @@map("users")
 }
@@ -213,5 +215,20 @@ model Highlight {
 
   @@map("highlights")
   @@index([contentId])
+  @@index([userId])
+}
+
+model Task {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // "CONTENT_GENERATION", etc.
+  status    String   // "PENDING", "COMPLETED", "FAILED"
+  result    Json?    // Store the result (e.g. contentId)
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("tasks")
   @@index([userId])
 }
