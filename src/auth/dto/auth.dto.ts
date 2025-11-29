@@ -64,6 +64,16 @@ export class LoginDto {
   password: string;
 }
 
+export class GoogleAuthDto {
+  @ApiProperty({
+    example: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlOWdkazcifQ...",
+    description: "Google ID token from Firebase Authentication",
+  })
+  @IsString()
+  @IsNotEmpty()
+  idToken: string;
+}
+
 export class AuthResponseDto {
   @ApiProperty({ description: "User information" })
   user: {

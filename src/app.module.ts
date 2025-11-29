@@ -20,6 +20,8 @@ import { StatisticsModule } from "./statistics/statistics.module";
 import { UserModule } from "./user/user.module";
 import { TaskModule } from "./task/task.module";
 import { NotificationModule } from "./notification/notification.module";
+import { SeedModule } from "./seed/seed.module";
+import { AdminModule } from "./admin/admin.module";
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { NotificationModule } from "./notification/notification.module";
     UserModule,
     TaskModule,
     NotificationModule,
+    SeedModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

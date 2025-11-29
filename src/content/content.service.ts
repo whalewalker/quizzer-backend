@@ -93,13 +93,36 @@ export class ContentService {
       );
     }
 
-    // Extract text from file (simplified - in production, use proper PDF/DOCX parsers)
+    // Extract text from file
     let extractedText = "";
-    if (file.mimetype === "text/plain") {
-      extractedText = file.buffer.toString("utf-8");
-    } else {
-      // For PDF/DOCX, you would use libraries like pdf-parse or mammoth
-      extractedText = `Content extracted from ${file.originalname}`;
+
+    try {
+      if (file.mimetype === "text/plain") {
+        extractedText = file.buffer.toString("utf-8");
+      } else if (file.mimetype === "application/pdf") {
+        // Use pdf-parse for PDF files
+        const pdfParse = require("pdf-parse");
+        const pdfData = await pdfParse(file.buffer);
+        extractedText = pdfData.text;
+      } else if (
+        file.mimetype ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        // Use mammoth for DOCX files
+        const mammoth = require("mammoth");
+        const result = await mammoth.extractRawText({ buffer: file.buffer });
+        extractedText = result.value;
+      }
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to extract text from ${file.originalname}. Please ensure the file is not corrupted.`
+      );
+    }
+
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new BadRequestException(
+        "No text content found in the uploaded file."
+      );
     }
 
     // Determine topic using AI
@@ -108,9 +131,15 @@ export class ContentService {
       maxTokens: 20,
     });
 
+    // Generate title using AI (NOT using filename)
+    const title = await this.aiService.generateContent({
+      prompt: `Based on this text, provide a single concise and descriptive title (max 10 words). Do not use quotes: ${extractedText.substring(0, 500)}`,
+      maxTokens: 50,
+    });
+
     return this.prisma.content.create({
       data: {
-        title: file.originalname.replace(/\.[^/.]+$/, ""),
+        title: title.trim(),
         content: extractedText,
         topic: topic.trim(),
         userId,

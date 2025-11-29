@@ -27,6 +27,28 @@ export class FlashcardService {
     dto: GenerateFlashcardDto,
     files?: Express.Multer.File[]
   ) {
+    // Enhanced validation
+    if (!dto.topic && !dto.content && (!files || files.length === 0)) {
+      this.logger.warn(
+        `User ${userId} attempted flashcard generation without any input`
+      );
+      throw new Error(
+        "Please provide either a topic, content, or upload files to generate flashcards"
+      );
+    }
+
+    // Validate numberOfCards
+    if (
+      !dto.numberOfCards ||
+      dto.numberOfCards < 5 ||
+      dto.numberOfCards > 100
+    ) {
+      this.logger.warn(
+        `User ${userId} provided invalid numberOfCards: ${dto.numberOfCards}`
+      );
+      throw new Error("Number of cards must be between 5 and 100");
+    }
+
     this.logger.log(
       `User ${userId} requesting flashcard generation: ${dto.numberOfCards} cards`
     );
@@ -38,29 +60,44 @@ export class FlashcardService {
       mimetype: f.mimetype,
     }));
 
-    // Add job to queue
-    const job = await this.flashcardQueue.add(
-      "generate",
-      {
-        userId,
-        dto,
-        files: fileData,
-      },
-      {
-        removeOnComplete: true,
-        removeOnFail: false,
-      }
-    );
+    try {
+      // Add job to queue
+      const job = await this.flashcardQueue.add(
+        "generate",
+        {
+          userId,
+          dto,
+          files: fileData,
+        },
+        {
+          removeOnComplete: true,
+          removeOnFail: false,
+          attempts: 3, // Retry up to 3 times
+          backoff: {
+            type: "exponential",
+            delay: 2000,
+          },
+        }
+      );
 
-    // Invalidate flashcard cache after new set is generated
-    const cacheKey = `flashcards:all:${userId}`;
-    await this.cacheManager.del(cacheKey);
+      // Invalidate flashcard cache after new set is generated
+      const cacheKey = `flashcards:all:${userId}`;
+      await this.cacheManager.del(cacheKey);
 
-    this.logger.log(`Flashcard generation job created with ID: ${job.id}`);
-    return {
-      jobId: job.id,
-      status: "pending",
-    };
+      this.logger.log(`Flashcard generation job created with ID: ${job.id}`);
+      return {
+        jobId: job.id,
+        status: "pending",
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to create flashcard generation job for user ${userId}:`,
+        error
+      );
+      throw new Error(
+        "Failed to start flashcard generation. Please try again."
+      );
+    }
   }
 
   async getJobStatus(jobId: string, userId: string) {

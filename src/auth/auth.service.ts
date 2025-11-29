@@ -6,7 +6,8 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../prisma/prisma.service";
 import * as bcrypt from "bcrypt";
-import { SignupDto, LoginDto } from "./dto/auth.dto";
+import { SignupDto, LoginDto, GoogleAuthDto } from "./dto/auth.dto";
+import { auth } from "../config/firebase.config";
 
 @Injectable()
 export class AuthService {
@@ -66,11 +67,58 @@ export class AuthService {
     return this.generateAuthResponse(user);
   }
 
+  async googleLogin(googleAuthDto: GoogleAuthDto) {
+    const { idToken } = googleAuthDto;
+
+    try {
+      // Verify the Google ID token using Firebase Admin
+      const decodedToken = await auth.verifyIdToken(idToken);
+
+      const { email, name, picture, uid } = decodedToken;
+
+      if (!email) {
+        throw new UnauthorizedException("Email not found in Google token");
+      }
+
+      // Check if user exists
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (user) {
+        // Update googleId if not set
+        if (!user.googleId) {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { googleId: uid },
+          });
+        }
+      } else {
+        // Create new user
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            name: name || email.split("@")[0],
+            googleId: uid,
+            avatar: picture,
+            password: null, // No password for Google users
+          },
+        });
+      }
+
+      return this.generateAuthResponse(user);
+    } catch (error) {
+      console.error("Google authentication error:", error);
+      throw new UnauthorizedException("Invalid Google token");
+    }
+  }
+
   private generateAuthResponse(user: any) {
     const payload = {
       sub: user.id,
       email: user.email,
       name: user.name,
+      role: user.role,
     };
 
     return {
@@ -81,6 +129,7 @@ export class AuthService {
         avatar: user.avatar,
         schoolName: user.schoolName,
         grade: user.grade,
+        role: user.role,
         createdAt: user.createdAt,
       },
       accessToken: this.jwtService.sign(payload),
@@ -97,6 +146,7 @@ export class AuthService {
         avatar: true,
         schoolName: true,
         grade: true,
+        role: true,
         createdAt: true,
       },
     });

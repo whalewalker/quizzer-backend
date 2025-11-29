@@ -77,9 +77,24 @@ export class FlashcardController {
     // Validate that at least one source is provided
     if (!dto.topic && !dto.content && (!files || files.length === 0)) {
       throw new BadRequestException(
-        "Please provide either a topic, content, or upload files"
+        "Please provide either a topic, content, or upload files to generate flashcards"
       );
     }
+
+    // Validate numberOfCards
+    if (!dto.numberOfCards) {
+      throw new BadRequestException("numberOfCards is required");
+    }
+
+    const numberOfCards = Number(dto.numberOfCards);
+    if (isNaN(numberOfCards) || numberOfCards < 5 || numberOfCards > 100) {
+      throw new BadRequestException(
+        "numberOfCards must be a number between 5 and 100"
+      );
+    }
+
+    // Update dto with parsed number
+    dto.numberOfCards = numberOfCards;
 
     return this.flashcardService.generateFlashcards(userId, dto, files);
   }
