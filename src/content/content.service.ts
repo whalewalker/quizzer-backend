@@ -15,6 +15,7 @@ import { NotificationService } from "../notification/notification.service";
 
 import { QuizService } from "../quiz/quiz.service";
 import { FlashcardService } from "../flashcard/flashcard.service";
+import { PDFParse } from "pdf-parse";
 
 @Injectable()
 export class ContentService {
@@ -26,6 +27,30 @@ export class ContentService {
     private readonly quizService: QuizService,
     private readonly flashcardService: FlashcardService
   ) {}
+
+  /**
+   * Sanitize extracted text to remove null bytes and other characters
+   * that are invalid in PostgreSQL UTF-8 encoding
+   */
+  private sanitizeText(text: string): string {
+    if (!text) return "";
+
+    return (
+      text
+        // Remove null bytes (0x00) which are invalid in PostgreSQL UTF-8
+        .replace(/\0/g, "")
+        // Remove other control characters except newlines, tabs, and carriage returns
+        .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+        // Normalize whitespace - replace multiple spaces with single space
+        .replace(/  +/g, " ")
+        // Normalize line breaks
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        // Remove excessive newlines (more than 2 consecutive)
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+    );
+  }
 
   async deleteContent(userId: string, contentId: string) {
     const content = await this.prisma.content.findUnique({
@@ -86,6 +111,17 @@ export class ContentService {
     taskId: string
   ) {
     try {
+      // Verify user exists before creating content
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!userExists) {
+        throw new BadRequestException(
+          `User with ID ${userId} not found. Please log in again.`
+        );
+      }
+
       const generatedContent = await this.aiService.generateContent({
         prompt: `Generate comprehensive educational content about: ${topic}. Include key concepts, explanations, and examples.`,
         maxTokens: 2000,
@@ -99,6 +135,21 @@ export class ContentService {
           userId,
         },
       });
+
+      // Generate learning guide
+      try {
+        const learningGuide = await this.aiService.generateLearningGuide({
+          topic,
+          content: generatedContent,
+        });
+
+        await this.prisma.content.update({
+          where: { id: content.id },
+          data: { learningGuide },
+        });
+      } catch (err) {
+        console.error("Failed to generate learning guide:", err);
+      }
 
       await this.taskService.updateTask(taskId, "COMPLETED", {
         contentId: content.id,
@@ -147,8 +198,8 @@ export class ContentService {
         extractedText = file.buffer.toString("utf-8");
       } else if (file.mimetype === "application/pdf") {
         // Use pdf-parse for PDF files
-        const pdfParse = require("pdf-parse");
-        const pdfData = await pdfParse(file.buffer);
+        const parser = new PDFParse({ data: file.buffer });
+        const pdfData = await parser.getText();
         extractedText = pdfData.text;
       } else if (
         file.mimetype ===
@@ -160,14 +211,25 @@ export class ContentService {
         extractedText = result.value;
       }
     } catch (error) {
+      console.error(
+        `Failed to extract text from file ${file.originalname}:`,
+        error
+      );
+      // Log the error stack for debugging
+      if (error instanceof Error) {
+        console.error("Inner error stack:", error.stack);
+      }
       throw new BadRequestException(
-        `Failed to extract text from ${file.originalname}. Please ensure the file is not corrupted.`
+        `Failed to extract text from ${file.originalname}. Please ensure the file is valid and not corrupted.`
       );
     }
 
+    // Sanitize the extracted text to remove null bytes and invalid characters
+    extractedText = this.sanitizeText(extractedText);
+
     if (!extractedText || extractedText.trim().length === 0) {
       throw new BadRequestException(
-        "No text content found in the uploaded file."
+        "No readable text content found in the uploaded file. The file may be corrupted or contain only images."
       );
     }
 
@@ -183,7 +245,18 @@ export class ContentService {
       maxTokens: 50,
     });
 
-    return this.prisma.content.create({
+    // Verify user exists before creating content
+    const userExists = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!userExists) {
+      throw new BadRequestException(
+        `User with ID ${userId} not found. Please log in again.`
+      );
+    }
+
+    const content = await this.prisma.content.create({
       data: {
         title: title.trim(),
         content: extractedText,
@@ -191,9 +264,37 @@ export class ContentService {
         userId,
       },
     });
+
+    // Generate learning guide in background
+    try {
+      const learningGuide = await this.aiService.generateLearningGuide({
+        topic,
+        content: extractedText.substring(0, 10000),
+      });
+
+      await this.prisma.content.update({
+        where: { id: content.id },
+        data: { learningGuide },
+      });
+    } catch (err) {
+      console.error("Failed to generate learning guide:", err);
+    }
+
+    return content;
   }
 
   async createContent(userId: string, createContentDto: CreateContentDto) {
+    // Verify user exists before creating content
+    const userExists = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!userExists) {
+      throw new BadRequestException(
+        `User with ID ${userId} not found. Please log in again.`
+      );
+    }
+
     return this.prisma.content.create({
       data: {
         ...createContentDto,
@@ -378,5 +479,45 @@ export class ContentService {
     });
 
     return topics.map((t) => t.topic);
+  }
+
+  async generateExplanation(
+    userId: string,
+    contentId: string,
+    sectionTitle: string,
+    sectionContent: string
+  ) {
+    const content = await this.prisma.content.findUnique({
+      where: { id: contentId },
+    });
+
+    if (!content || content.userId !== userId) {
+      throw new NotFoundException("Content not found");
+    }
+
+    return this.aiService.generateExplanation({
+      topic: sectionTitle,
+      context: sectionContent,
+    });
+  }
+
+  async generateExample(
+    userId: string,
+    contentId: string,
+    sectionTitle: string,
+    sectionContent: string
+  ) {
+    const content = await this.prisma.content.findUnique({
+      where: { id: contentId },
+    });
+
+    if (!content || content.userId !== userId) {
+      throw new NotFoundException("Content not found");
+    }
+
+    return this.aiService.generateExample({
+      topic: sectionTitle,
+      context: sectionContent,
+    });
   }
 }

@@ -105,9 +105,9 @@ export class FlashcardService {
           files: fileData,
         },
         {
-          removeOnComplete: { age: 60 },
-          removeOnFail: false,
-          attempts: 3, // Retry up to 3 times
+          removeOnComplete: { age: 60 }, // Keep for 1 minute
+          removeOnFail: { age: 60 }, // Keep for 1 minute
+          attempts: 2, // Retry 1 time
           backoff: {
             type: "exponential",
             delay: 2000,
@@ -206,22 +206,7 @@ export class FlashcardService {
       throw new NotFoundException("Flashcard set not found");
     }
 
-    // Shuffle cards
-    if (Array.isArray(flashcardSet.cards)) {
-      flashcardSet.cards = this.shuffleArray([
-        ...(flashcardSet.cards as any[]),
-      ]);
-    }
-
     return flashcardSet;
-  }
-
-  private shuffleArray(array: any[]) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
   }
 
   async recordFlashcardSession(

@@ -2,16 +2,13 @@ import { NestFactory, HttpAdapterHost } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
-import { Logger, LoggerErrorInterceptor } from "nestjs-pino";
 import { json } from "express";
 import { AppModule } from "./app.module";
 import { doubleCsrfProtection } from "./config/csrf.config";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  app.useLogger(app.get(Logger));
-  app.useGlobalInterceptors(new LoggerErrorInterceptor());
+  const app = await NestFactory.create(AppModule);
   const httpAdapter = app.get(HttpAdapterHost);
   app.useGlobalFilters(new GlobalExceptionFilter(httpAdapter));
 

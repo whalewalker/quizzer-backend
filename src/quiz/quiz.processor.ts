@@ -8,6 +8,7 @@ import { HttpService } from "@nestjs/axios";
 import { lastValueFrom } from "rxjs";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Cache } from "cache-manager";
+import { QuizType } from "@prisma/client";
 
 export interface QuizJobData {
   userId: string;
@@ -105,12 +106,18 @@ export class QuizProcessor extends WorkerHost {
 
       // Save quiz to database
       this.logger.debug(`Job ${job.id}: Saving quiz to database`);
+
+      // Convert quizType string to enum
+      const quizTypeEnum = dto.quizType
+        ? (dto.quizType.toUpperCase().replace(/-/g, "_") as QuizType)
+        : QuizType.STANDARD;
+
       const quiz = await this.prisma.quiz.create({
         data: {
           title,
           topic,
           difficulty: dto.difficulty,
-          quizType: dto.quizType || "standard",
+          quizType: quizTypeEnum,
           timeLimit: dto.timeLimit,
           questions: questions as any,
           userId,

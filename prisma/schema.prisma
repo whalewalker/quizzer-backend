@@ -16,6 +16,14 @@ enum UserRole {
   SUPER_ADMIN
 }
 
+enum QuizType {
+  STANDARD
+  QUICK_CHECK
+  TIMED_TEST
+  SCENARIO_BASED
+  CONFIDENCE_BASED
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -41,6 +49,7 @@ model User {
   contents      Content[]
   highlights    Highlight[]
   tasks         Task[]
+  topicProgress TopicProgress[]
   fcmTokens     String[] @default([])
 
   @@map("users")
@@ -51,7 +60,7 @@ model Quiz {
   title       String
   topic       String
   difficulty  String   @default("medium")
-  quizType    String   @default("standard") // "standard", "timed", "scenario"
+  quizType    QuizType @default(STANDARD)
   timeLimit   Int?     // Time limit in seconds (for timed quizzes)
   questions   Json     // Store questions array as JSON
   userId      String
@@ -167,6 +176,8 @@ model Attempt {
   score          Int?
   totalQuestions Int?
   answers        Json?         // Store user answers
+  confidenceRatings Json?      // Store confidence ratings for each answer
+  timeSpent      Int?          // Time spent in seconds
   completedAt    DateTime      @default(now())
   createdAt      DateTime      @default(now())
 
@@ -199,6 +210,7 @@ model Content {
   id          String   @id @default(uuid())
   title       String
   content     String   @db.Text
+  learningGuide Json?    // Store structured learning guide
   topic       String
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -210,6 +222,8 @@ model Content {
   flashcardSet FlashcardSet?
   quizId        String?
   flashcardSetId String?
+  lastReadPosition Float    @default(0)
+  topicProgress TopicProgress[]
 
   @@map("contents")
   @@index([userId])
@@ -248,3 +262,87 @@ model Task {
   @@map("tasks")
   @@index([userId])
 }
+
+enum RetentionLevel {
+  LEARNING
+  REINFORCEMENT
+  RECALL
+  MASTERY
+}
+
+model TopicProgress {
+  id             String         @id @default(uuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic          String
+  retentionLevel RetentionLevel @default(LEARNING)
+  strength       Int            @default(0) // 0-100
+  lastReviewedAt DateTime       @default(now())
+  nextReviewAt   DateTime       @default(now())
+  contentId      String?
+  content        Content?       @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([userId, topic])
+  @@map("topic_progress")
+  @@index([userId])
+  @@index([nextReviewAt])
+  @@index([retentionLevel])
+}
+
+model QuizRecommendation {
+  id          String   @id @default(uuid())
+  userId      String
+  quizType    QuizType
+  topic       String
+  difficulty  String
+  reason      String   @db.Text
+  priority    String   // "high", "medium", "low"
+  scheduledFor DateTime?
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("quiz_recommendations")
+  @@index([userId])
+  @@index([completed])
+  @@index([scheduledFor])
+  @@index([priority])
+}
+
+model WeakArea {
+  id          String   @id @default(uuid())
+  userId      String
+  topic       String
+  concept     String   // Specific concept within the topic
+  errorCount  Int      @default(1)
+  lastErrorAt DateTime @default(now())
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, topic, concept])
+  @@map("weak_areas")
+  @@index([userId])
+  @@index([resolved])
+  @@index([topic])
+}
+
+model StudySession {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // "quiz", "flashcard", "content_review"
+  duration    Int      // Duration in seconds
+  itemsStudied Int     // Number of items studied
+  performance Float?   // Performance score (0-100)
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("study_sessions")
+  @@index([userId])
+  @@index([startedAt])
+  @@index([type])
+}
+

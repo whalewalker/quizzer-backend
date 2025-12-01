@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
-import { LoggerModule } from "nestjs-pino";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { BullModule } from "@nestjs/bullmq";
+import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -24,12 +24,18 @@ import { NotificationModule } from "./notification/notification.module";
 import { SeedModule } from "./seed/seed.module";
 import { AdminModule } from "./admin/admin.module";
 import { FileStorageModule } from "./file-storage/file-storage.module";
+import { StudyModule } from "./study/study.module";
+import { AssessmentModule } from "./assessment/assessment.module";
+import { InsightsModule } from "./insights/insights.module";
+import { CompanionModule } from "./companion/companion.module";
+import { QuoteModule } from "./quote/quote.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -46,45 +52,6 @@ import { FileStorageModule } from "./file-storage/file-storage.module";
         limit: 100,
       },
     ]),
-    LoggerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        pinoHttp: {
-          serializers: {
-            req: (req) => ({
-              id: req.id,
-              method: req.method,
-              url: req.url,
-              query: req.query,
-              params: req.params,
-            }),
-          },
-          customProps: (req: any, res) => ({
-            payload: req.body,
-          }),
-          transport:
-            configService.get("NODE_ENV") !== "production"
-              ? {
-                  target: "pino-pretty",
-                  options: {
-                    singleLine: true,
-                  },
-                }
-              : undefined,
-          redact: {
-            paths: [
-              "payload.password",
-              "payload.token",
-              "payload.creditCard",
-              "payload.cvv",
-              "payload.payment",
-            ],
-            remove: true,
-          },
-        },
-      }),
-    }),
     PrismaModule,
     FileStorageModule,
     CacheModule,
@@ -103,7 +70,13 @@ import { FileStorageModule } from "./file-storage/file-storage.module";
     TaskModule,
     NotificationModule,
     SeedModule,
+    SeedModule,
     AdminModule,
+    StudyModule,
+    AssessmentModule,
+    InsightsModule,
+    CompanionModule,
+    QuoteModule,
   ],
   controllers: [AppController],
   providers: [

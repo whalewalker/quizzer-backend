@@ -20,6 +20,7 @@ export interface QuizQuestion {
   // For matching questions
   leftColumn?: string[];
   rightColumn?: string[];
+  citation?: string;
 }
 
 export interface Flashcard {
@@ -407,5 +408,64 @@ export class AiService {
 
     await this.cacheManager.set(cacheKey, text, 3600000); // Cache for 1 hour
     return text;
+  }
+  /**
+   * Generate a structured learning guide
+   */
+  async generateLearningGuide(params: {
+    topic?: string;
+    content?: string;
+  }): Promise<any> {
+    const { topic, content } = params;
+    const cacheKey = `learning-guide:${topic}:${content ? Buffer.from(content).toString("base64").substring(0, 20) : "no-content"}`;
+
+    const cached = await this.cacheManager.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const prompt = AiPrompts.generateLearningGuide(topic || "", content || "");
+
+    const result = await this.model.generateContent(prompt);
+    const response = await result.response;
+    const responseText = response.text();
+
+    try {
+      const cleanedResponse = responseText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+
+      const finalResult = JSON.parse(cleanedResponse);
+      await this.cacheManager.set(cacheKey, finalResult, 3600000); // Cache for 1 hour
+      return finalResult;
+    } catch (error) {
+      console.error("Failed to parse learning guide:", responseText);
+      throw new Error("Failed to generate valid learning guide format");
+    }
+  }
+
+  /**
+   * Generate a simpler explanation for a concept
+   */
+  async generateExplanation(params: {
+    topic: string;
+    context: string;
+  }): Promise<string> {
+    const { topic, context } = params;
+    const prompt = AiPrompts.generateExplanation(topic, context);
+    return this.generateContent({ prompt });
+  }
+
+  /**
+   * Generate more examples for a concept
+   */
+  async generateExample(params: {
+    topic: string;
+    context: string;
+  }): Promise<string> {
+    const { topic, context } = params;
+    const prompt = AiPrompts.generateExample(topic, context);
+    return this.generateContent({ prompt });
   }
 }

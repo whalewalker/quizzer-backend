@@ -8,6 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { RecommendationService } from "../recommendation/recommendation.service";
 import { StreakService } from "../streak/streak.service";
 import { ChallengeService } from "../challenge/challenge.service";
+import { StudyService } from "../study/study.service";
 import { GenerateQuizDto, SubmitQuizDto } from "./dto/quiz.dto";
 import {
   IFileStorageService,
@@ -24,6 +25,7 @@ export class QuizService {
     private readonly recommendationService: RecommendationService,
     private readonly streakService: StreakService,
     private readonly challengeService: ChallengeService,
+    private readonly studyService: StudyService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @Inject(FILE_STORAGE_SERVICE)
     private readonly fileStorageService: IFileStorageService
@@ -75,8 +77,13 @@ export class QuizService {
         files: fileData,
       },
       {
-        removeOnComplete: { age: 60 },
-        removeOnFail: false,
+        removeOnComplete: { age: 60 }, // Keep for 1 minute
+        removeOnFail: { age: 60 }, // Keep for 1 minute
+        attempts: 2, // Retry 1 time
+        backoff: {
+          type: "exponential",
+          delay: 2000,
+        },
       }
     );
 
@@ -161,36 +168,16 @@ export class QuizService {
       throw new NotFoundException("Quiz not found");
     }
 
-    // Remove sensitive information and shuffle options
+    // Remove sensitive information
     const sanitizedQuiz = {
       ...quiz,
       questions: (quiz.questions as any[]).map((q) => {
         const { correctAnswer, explanation, ...sanitizedQuestion } = q;
-
-        // Shuffle options if applicable
-        if (
-          (q.questionType === "single-select" ||
-            q.questionType === "multi-select") &&
-          Array.isArray(sanitizedQuestion.options)
-        ) {
-          sanitizedQuestion.options = this.shuffleArray([
-            ...sanitizedQuestion.options,
-          ]);
-        }
-
         return sanitizedQuestion;
       }),
     };
 
     return sanitizedQuiz;
-  }
-
-  private shuffleArray(array: any[]) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
   }
 
   async submitQuiz(userId: string, quizId: string, dto: SubmitQuizDto) {
@@ -256,6 +243,17 @@ export class QuizService {
       .catch((err) =>
         this.logger.error(
           `Failed to generate recommendations for user ${userId}:`,
+          err
+        )
+      );
+
+    // Update topic progress (Retention Tracking)
+    const percentage = Math.round((correctCount / questions.length) * 100);
+    this.studyService
+      .updateProgress(userId, quiz.topic, percentage, quiz.contentId)
+      .catch((err) =>
+        this.logger.error(
+          `Failed to update topic progress for user ${userId}:`,
           err
         )
       );

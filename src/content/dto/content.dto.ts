@@ -93,4 +93,18 @@ export class UpdateContentDto {
   @IsString()
   @IsOptional()
   topic?: string;
+
+  @ApiProperty({
+    description: "Structured learning guide",
+    required: false,
+  })
+  @IsOptional()
+  learningGuide?: any;
+
+  @ApiProperty({
+    description: "Last read position in percentage (0-100)",
+    required: false,
+  })
+  @IsOptional()
+  lastReadPosition?: number;
 }

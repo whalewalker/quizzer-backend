@@ -156,4 +156,39 @@ export class ContentController {
   ) {
     return this.contentService.deleteHighlight(userId, highlightId);
   }
+
+  @Post(":id/explain")
+  @ApiOperation({ summary: "Generate explanation for a section" })
+  @ApiResponse({
+    status: 200,
+    description: "Explanation generated successfully",
+  })
+  async explainSection(
+    @CurrentUser("sub") userId: string,
+    @Param("id") contentId: string,
+    @Body() body: { sectionTitle: string; sectionContent: string }
+  ) {
+    return this.contentService.generateExplanation(
+      userId,
+      contentId,
+      body.sectionTitle,
+      body.sectionContent
+    );
+  }
+
+  @Post(":id/example")
+  @ApiOperation({ summary: "Generate examples for a section" })
+  @ApiResponse({ status: 200, description: "Examples generated successfully" })
+  async exampleSection(
+    @CurrentUser("sub") userId: string,
+    @Param("id") contentId: string,
+    @Body() body: { sectionTitle: string; sectionContent: string }
+  ) {
+    return this.contentService.generateExample(
+      userId,
+      contentId,
+      body.sectionTitle,
+      body.sectionContent
+    );
+  }
 }

@@ -25,6 +25,7 @@ Requirements:
 3. Questions should be clear and unambiguous
 4. Provide brief explanations for correct answers
 5. Make questions appropriate for the quiz type and difficulty level
+6. If content is provided, include a "citation" field indicating the source text or section for the answer
 
 Return ONLY a valid JSON object in this exact format (no markdown, no code blocks):
 {
@@ -37,7 +38,8 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
       "question": "Statement here?",
       "options": ["True", "False"],
       "correctAnswer": 0,
-      "explanation": "Brief explanation"
+      "explanation": "Brief explanation",
+      "citation": "Source text reference (optional)"
     },
     // For single-select questions:
     {
@@ -45,7 +47,8 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
       "question": "Question text?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": 0,
-      "explanation": "Brief explanation"
+      "explanation": "Brief explanation",
+      "citation": "Source text reference (optional)"
     },
     // For multi-select questions:
     {
@@ -53,7 +56,8 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
       "question": "Select all that apply:",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": [0, 2],
-      "explanation": "Brief explanation"
+      "explanation": "Brief explanation",
+      "citation": "Source text reference (optional)"
     },
     // For matching questions:
     {
@@ -62,14 +66,16 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
       "leftColumn": ["Item 1", "Item 2", "Item 3"],
       "rightColumn": ["Match A", "Match B", "Match C"],
       "correctAnswer": {"Item 1": "Match A", "Item 2": "Match B", "Item 3": "Match C"},
-      "explanation": "Brief explanation"
+      "explanation": "Brief explanation",
+      "citation": "Source text reference (optional)"
     },
     // For fill-in-the-blank questions:
     {
       "questionType": "fill-blank",
       "question": "Complete the sentence: The capital of France is ____.",
       "correctAnswer": "Paris",
-      "explanation": "Brief explanation"
+      "explanation": "Brief explanation",
+      "citation": "Source text reference (optional)"
     }
   ]
 }
@@ -139,5 +145,83 @@ Return ONLY a valid JSON array in this exact format (no markdown, no code blocks
 
   static extractTopic(text: string) {
     return `Based on this text, provide a single concise topic name (max 3 words): ${text}`;
+  }
+  static generateLearningGuide(topic: string, sourceContent: string = "") {
+    return `
+You are an expert educational content creator. Create a structured learning guide for the following:
+
+${topic ? `Topic: ${topic}` : ""}
+${sourceContent ? `Content:\n${sourceContent}` : ""}
+
+Requirements:
+1. Extract the most important key concepts
+2. Create a logical flow of sections
+3. For each section, provide a clear explanation, and if possible, an analogy or example
+4. Suggest next steps for the learner
+5. Keep the tone encouraging, clear, and concise (no "AI" fluff)
+6. **FORMATTING IS CRITICAL**:
+   - Use **bold** for key terms and definitions.
+   - Break long paragraphs into smaller, digestible chunks.
+   - Use lists (bullet points) where appropriate to make reading easier.
+   - Do NOT write long, dense blocks of text.
+   - Use simple, direct language.
+
+Return ONLY a valid JSON object in this exact format (no markdown, no code blocks):
+{
+  "overview": "Brief summary of what this is about (2-3 sentences)",
+  "keyConcepts": ["Concept 1", "Concept 2", "Concept 3"],
+  "sections": [
+    {
+      "title": "Section Title",
+      "content": "Main explanation content (use markdown for bolding and lists)...",
+      "example": "An example or analogy (optional)"
+    }
+  ],
+  "nextSteps": ["Actionable step 1", "Actionable step 2"]
+}
+`;
+  }
+
+  static generateExplanation(topic: string, context: string) {
+    return `
+You are an expert, friendly tutor who excels at making complex topics easy to understand. 
+Provide a clearer, simpler explanation for the following concept:
+
+Topic: ${topic}
+Context: ${context}
+
+Requirements:
+1. Go STRAIGHT to the explanation. DO NOT use introductory phrases like "Here is an explanation" or "Let's break this down".
+2. Use a conversational and encouraging tone, but keep it professional and direct.
+3. Use **Markdown** formatting to structure your response:
+   - Use **bold** for key terms.
+   - Use lists (bullet points) to break down steps or features.
+   - Use > blockquotes for important takeaways or analogies.
+4. Break down complex ideas into digestible parts.
+5. Use a powerful analogy if it helps clarify the concept.
+
+Return the explanation in valid Markdown format.
+`;
+  }
+
+  static generateExample(topic: string, context: string) {
+    return `
+You are an expert, practical tutor. Provide concrete, real-world examples for the following concept:
+
+Topic: ${topic}
+Context: ${context}
+
+Requirements:
+1. Go STRAIGHT to the examples. DO NOT use introductory phrases like "Here are some examples" or "Let's look at this".
+2. Provide 2-3 distinct, detailed examples.
+3. Use **Markdown** formatting:
+   - Use ### Headers for each example title.
+   - Use **bold** for important parts.
+   - Use lists to explain the breakdown of the example.
+4. Explain *why* each example fits the concept.
+5. Relate it to real-world scenarios that are easy to visualize (e.g. money, cooking, travel, sports). Avoid abstract math examples unless the topic is specifically abstract math.
+
+Return the examples in valid Markdown format.
+`;
   }
 }
