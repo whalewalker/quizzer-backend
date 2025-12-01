@@ -65,12 +65,7 @@ export class ContentService {
     if (content.quizId) {
       try {
         await this.quizService.deleteQuiz(content.quizId, userId);
-      } catch (error) {
-        console.error(
-          `Failed to delete associated quiz ${content.quizId}:`,
-          error
-        );
-      }
+      } catch (error) {}
     }
 
     // Delete associated flashcard set if exists
@@ -80,12 +75,7 @@ export class ContentService {
           content.flashcardSetId,
           userId
         );
-      } catch (error) {
-        console.error(
-          `Failed to delete associated flashcard set ${content.flashcardSetId}:`,
-          error
-        );
-      }
+      } catch (error) {}
     }
 
     return this.prisma.content.delete({
@@ -147,9 +137,7 @@ export class ContentService {
           where: { id: content.id },
           data: { learningGuide },
         });
-      } catch (err) {
-        console.error("Failed to generate learning guide:", err);
-      }
+      } catch (err) {}
 
       await this.taskService.updateTask(taskId, "COMPLETED", {
         contentId: content.id,
@@ -211,13 +199,8 @@ export class ContentService {
         extractedText = result.value;
       }
     } catch (error) {
-      console.error(
-        `Failed to extract text from file ${file.originalname}:`,
-        error
-      );
       // Log the error stack for debugging
       if (error instanceof Error) {
-        console.error("Inner error stack:", error.stack);
       }
       throw new BadRequestException(
         `Failed to extract text from ${file.originalname}. Please ensure the file is valid and not corrupted.`
@@ -276,9 +259,7 @@ export class ContentService {
         where: { id: content.id },
         data: { learningGuide },
       });
-    } catch (err) {
-      console.error("Failed to generate learning guide:", err);
-    }
+    } catch (err) {}
 
     return content;
   }
@@ -382,12 +363,10 @@ export class ContentService {
     if (!quizId && relationQuizId) {
       quizId = relationQuizId;
       // Async update to persist the mapping
-      this.prisma.content
-        .update({
-          where: { id: contentId },
-          data: { quizId },
-        })
-        .catch((err) => console.error("Failed to backfill quizId", err));
+      this.prisma.content.update({
+        where: { id: contentId },
+        data: { quizId },
+      });
     }
 
     if (!flashcardSetId && relationFlashcardSetId) {
@@ -398,9 +377,7 @@ export class ContentService {
           where: { id: contentId },
           data: { flashcardSetId },
         })
-        .catch((err) =>
-          console.error("Failed to backfill flashcardSetId", err)
-        );
+        .catch((err) => {});
     }
 
     return {

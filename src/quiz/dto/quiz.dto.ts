@@ -62,4 +62,8 @@ export class GenerateQuizDto {
 export class SubmitQuizDto {
   @IsArray()
   answers: (number | number[] | string | { [key: string]: string })[];
+
+  @IsOptional()
+  @IsString()
+  challengeId?: string;
 }

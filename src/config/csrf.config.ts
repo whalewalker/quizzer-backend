@@ -3,7 +3,6 @@ import { doubleCsrf } from "csrf-csrf";
 export const {
   invalidCsrfTokenError,
   generateCsrfToken,
-  validateRequest,
   doubleCsrfProtection,
 } = doubleCsrf({
   getSecret: () =>

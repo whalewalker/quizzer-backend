@@ -99,7 +99,6 @@ export class AiService {
           await fs.unlink(file.path).catch(() => {});
         }
       } catch (error) {
-        console.error(`Error processing file ${file.originalname}:`, error);
         throw new Error(`Failed to process file: ${file.originalname}`);
       }
     }
@@ -214,7 +213,6 @@ export class AiService {
 
       return finalResult;
     } catch (error) {
-      console.error("Failed to parse AI response:", responseText, error);
       throw new Error("Failed to generate valid quiz format");
     }
   }
@@ -342,7 +340,6 @@ export class AiService {
 
       return finalResult;
     } catch (error) {
-      console.error("Failed to parse AI response:", responseText);
       throw new Error("Failed to generate valid flashcard format");
     }
   }
@@ -381,7 +378,6 @@ export class AiService {
       await this.cacheManager.set(cacheKey, finalResult, 3600000); // Cache for 1 hour
       return finalResult;
     } catch (error) {
-      console.error("Failed to parse recommendations:", responseText);
       return [];
     }
   }
@@ -440,7 +436,6 @@ export class AiService {
       await this.cacheManager.set(cacheKey, finalResult, 3600000); // Cache for 1 hour
       return finalResult;
     } catch (error) {
-      console.error("Failed to parse learning guide:", responseText);
       throw new Error("Failed to generate valid learning guide format");
     }
   }

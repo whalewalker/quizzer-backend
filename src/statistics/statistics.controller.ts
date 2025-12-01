@@ -26,7 +26,11 @@ export class StatisticsController {
 
   @Get("attempts")
   @ApiOperation({ summary: "Get user attempts with filters" })
-  @ApiQuery({ name: "type", required: false, enum: ["quiz", "flashcard"] })
+  @ApiQuery({
+    name: "type",
+    required: false,
+    enum: ["quiz", "flashcard", "challenge"],
+  })
   @ApiQuery({ name: "startDate", required: false, type: String })
   @ApiQuery({ name: "endDate", required: false, type: String })
   @ApiQuery({ name: "limit", required: false, type: Number })
@@ -34,9 +38,10 @@ export class StatisticsController {
   @ApiResponse({ status: 200, description: "List of attempts with pagination" })
   async getAttempts(
     @CurrentUser("sub") userId: string,
-    @Query("type") type?: "quiz" | "flashcard",
+    @Query("type") type?: "quiz" | "flashcard" | "challenge",
     @Query("quizId") quizId?: string,
     @Query("flashcardSetId") flashcardSetId?: string,
+    @Query("challengeId") challengeId?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
     @Query("limit") limit?: number,
@@ -46,6 +51,7 @@ export class StatisticsController {
       type,
       quizId,
       flashcardSetId,
+      challengeId,
       startDate,
       endDate,
       limit: limit ? Number(limit) : undefined,

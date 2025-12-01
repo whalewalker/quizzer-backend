@@ -22,6 +22,10 @@ export class StatisticsService {
       (a) => a.type === "flashcard"
     ).length;
 
+    const challengeAttempts = attempts.filter(
+      (a) => a.type === "challenge"
+    ).length;
+
     // Calculate average accuracy
     const attemptsWithScores = attempts.filter(
       (a) => a.score !== null && a.totalQuestions !== null
@@ -46,6 +50,7 @@ export class StatisticsService {
       totalAttempts,
       quizAttempts,
       flashcardAttempts,
+      challengeAttempts,
       averageAccuracy,
       currentStreak: streak?.currentStreak || 0,
       totalTimeSpent,
@@ -55,9 +60,10 @@ export class StatisticsService {
   async getAttempts(
     userId: string,
     filters?: {
-      type?: "quiz" | "flashcard";
+      type?: "quiz" | "flashcard" | "challenge";
       quizId?: string;
       flashcardSetId?: string;
+      challengeId?: string;
       startDate?: string;
       endDate?: string;
       limit?: number;
@@ -76,6 +82,10 @@ export class StatisticsService {
 
     if (filters?.flashcardSetId) {
       where.flashcardSetId = filters.flashcardSetId;
+    }
+
+    if (filters?.challengeId) {
+      where.challengeId = filters.challengeId;
     }
 
     if (filters?.startDate || filters?.endDate) {
@@ -108,6 +118,13 @@ export class StatisticsService {
               id: true,
               title: true,
               topic: true,
+            },
+          },
+          challenge: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
             },
           },
         },

@@ -29,6 +29,8 @@ import { AssessmentModule } from "./assessment/assessment.module";
 import { InsightsModule } from "./insights/insights.module";
 import { CompanionModule } from "./companion/companion.module";
 import { QuoteModule } from "./quote/quote.module";
+import { SchoolModule } from "./school/school.module";
+import { CoachingModule } from "./coaching/coaching.module";
 
 @Module({
   imports: [
@@ -77,6 +79,8 @@ import { QuoteModule } from "./quote/quote.module";
     InsightsModule,
     CompanionModule,
     QuoteModule,
+    SchoolModule,
+    CoachingModule,
   ],
   controllers: [AppController],
   providers: [

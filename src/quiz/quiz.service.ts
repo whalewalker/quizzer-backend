@@ -160,9 +160,32 @@ export class QuizService {
   }
 
   async getQuizById(id: string, userId: string) {
-    const quiz = await this.prisma.quiz.findFirst({
+    // First, try to find quiz owned by the user
+    let quiz = await this.prisma.quiz.findFirst({
       where: { id, userId },
     });
+
+    // If not found, check if it's a challenge quiz that the user has access to
+    if (!quiz) {
+      // Find if this quiz is associated with any challenge
+      const challenge = await this.prisma.challenge.findFirst({
+        where: {
+          quizId: id,
+          completions: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+      });
+
+      // If user has joined a challenge with this quiz, allow access
+      if (challenge) {
+        quiz = await this.prisma.quiz.findUnique({
+          where: { id },
+        });
+      }
+    }
 
     if (!quiz) {
       throw new NotFoundException("Quiz not found");
@@ -182,9 +205,32 @@ export class QuizService {
 
   async submitQuiz(userId: string, quizId: string, dto: SubmitQuizDto) {
     this.logger.log(`User ${userId} submitting quiz ${quizId}`);
-    const quiz = await this.prisma.quiz.findFirst({
+
+    // First, try to find quiz owned by the user
+    let quiz = await this.prisma.quiz.findFirst({
       where: { id: quizId, userId },
     });
+
+    // If not found, check if it's a challenge quiz that the user has access to
+    if (!quiz) {
+      const challenge = await this.prisma.challenge.findFirst({
+        where: {
+          quizId: quizId,
+          completions: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+      });
+
+      // If user has joined a challenge with this quiz, allow submission
+      if (challenge) {
+        quiz = await this.prisma.quiz.findUnique({
+          where: { id: quizId },
+        });
+      }
+    }
 
     if (!quiz) {
       this.logger.warn(`Quiz ${quizId} not found for user ${userId}`);
@@ -205,7 +251,8 @@ export class QuizService {
       data: {
         userId,
         quizId,
-        type: "quiz",
+        challengeId: dto.challengeId,
+        type: dto.challengeId ? "challenge" : "quiz",
         score: correctCount,
         totalQuestions: questions.length,
         answers: dto.answers as any,
@@ -214,6 +261,18 @@ export class QuizService {
 
     // Invalidate quiz cache after submission
     await this.cacheManager.del(`quizzes:all:${userId}`);
+
+    // If this is a challenge quiz, invalidate challenge cache immediately
+    if (dto.challengeId) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayKey = today.toISOString();
+      await this.cacheManager.del(`challenges:daily:${userId}:${todayKey}`);
+      await this.cacheManager.del(`challenges:all:${userId}`);
+      this.logger.debug(
+        `Invalidated challenge cache for user ${userId} after quiz submission`
+      );
+    }
 
     // Update streak with score data
     await this.streakService.updateStreak(

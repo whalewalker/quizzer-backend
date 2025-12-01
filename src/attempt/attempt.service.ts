@@ -24,6 +24,13 @@ export class AttemptService {
             topic: true,
           },
         },
+        challenge: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+          },
+        },
       },
     });
   }

@@ -9,11 +9,14 @@ import * as bcrypt from "bcrypt";
 import { SignupDto, LoginDto, GoogleAuthDto } from "./dto/auth.dto";
 import { auth } from "../config/firebase.config";
 
+import { SchoolService } from "../school/school.service";
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly schoolService: SchoolService
   ) {}
 
   async signup(signupDto: SignupDto) {
@@ -31,13 +34,20 @@ export class AuthService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Normalize school name if provided
+    let normalizedSchoolName = schoolName;
+    if (schoolName) {
+      const school = await this.schoolService.findOrCreate(schoolName);
+      normalizedSchoolName = school.name;
+    }
+
     // Create user
     const user = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        schoolName,
+        schoolName: normalizedSchoolName,
         grade,
       },
     });
@@ -108,7 +118,6 @@ export class AuthService {
 
       return this.generateAuthResponse(user);
     } catch (error) {
-      console.error("Google authentication error:", error);
       throw new UnauthorizedException("Invalid Google token");
     }
   }

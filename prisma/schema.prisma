@@ -73,6 +73,8 @@ model Quiz {
   updatedAt   DateTime @updatedAt
 
   attempts    Attempt[]
+  challenges  Challenge[]
+  challengeQuizzes ChallengeQuiz[]
 
   @@map("quizzes")
   @@index([userId])
@@ -130,35 +132,57 @@ model LeaderboardEntry {
   @@index([rank])
 }
 
+enum ChallengeType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  HOT
+}
+
 model Challenge {
   id          String   @id @default(uuid())
   title       String
   description String
-  type        String   // "daily", "weekly", "monthly"
+  type        String   // "daily", "weekly", "monthly", "hot"
+  category    String?  // More explicit categorization (e.g., "Daily Challenges", "Weekly Challenges")
   target      Int
   reward      Int
   startDate   DateTime
   endDate     DateTime
+  rules       String?  @db.Text // Challenge-specific rules
+  timeLimit   Int?     // Overall time limit for the challenge in seconds
+  format      String   @default("STANDARD") // "TIMED", "SCENARIO", "SPEED", "ACCURACY", "MIXED"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   completions ChallengeCompletion[]
+  quizzes     ChallengeQuiz[]
+  attempts    Attempt[]
+
+  // Legacy single quiz support (deprecated, use quizzes relation)
+  quizId      String?
+  quiz        Quiz?    @relation(fields: [quizId], references: [id])
 
   @@map("challenges")
   @@index([type])
   @@index([endDate])
+  @@index([category])
 }
 
 model ChallengeCompletion {
-  id          String    @id @default(uuid())
-  challengeId String
-  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  userId      String
-  progress    Int       @default(0)
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  challengeId     String
+  challenge       Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId          String
+  progress        Int       @default(0)
+  completed       Boolean   @default(false)
+  completedAt     DateTime?
+  currentQuizIndex Int      @default(0) // Current quiz index in multi-quiz challenges
+  quizAttempts    Json?     // Array of quiz attempt results
+  finalScore      Int?      // Cumulative score across all quizzes
+  percentile      Float?    // User's percentile ranking (0-100)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([challengeId, userId])
   @@map("challenge_completions")
@@ -166,13 +190,31 @@ model ChallengeCompletion {
   @@index([completed])
 }
 
+model ChallengeQuiz {
+  id          String    @id @default(uuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order       Int       // Order of quiz in the challenge sequence (0-indexed)
+  createdAt   DateTime  @default(now())
+  
+  @@unique([challengeId, quizId])
+  @@unique([challengeId, order])
+  @@map("challenge_quizzes")
+  @@index([challengeId])
+  @@index([quizId])
+}
+
+
 model Attempt {
   id             String        @id @default(uuid())
   userId         String
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   quizId         String?
   flashcardSetId String?
-  type           String        // "quiz" or "flashcard"
+  challengeId    String?
+  type           String        // "quiz", "flashcard", "challenge"
   score          Int?
   totalQuestions Int?
   answers        Json?         // Store user answers
@@ -183,11 +225,13 @@ model Attempt {
 
   quiz           Quiz?         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   flashcardSet   FlashcardSet? @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
+  challenge      Challenge?    @relation(fields: [challengeId], references: [id], onDelete: SetNull)
 
   @@map("attempts")
   @@index([userId])
   @@index([quizId])
   @@index([flashcardSetId])
+  @@index([challengeId])
   @@index([completedAt])
 }
 
@@ -346,3 +390,13 @@ model StudySession {
   @@index([type])
 }
 
+
+model School {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("schools")
+  @@index([name])
+}

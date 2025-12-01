@@ -45,8 +45,7 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
     {
       "questionType": "single-select",
       "question": "Question text?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswer": 0,
+      "options": ["Option A", "Option B", "Option C", "Option D"] // Instruction for AI: List only the option text. Do NOT include labels like A), B), C), or D). Just provide the text of each option.      "correctAnswer": 0,
       "explanation": "Brief explanation",
       "citation": "Source text reference (optional)"
     },

@@ -181,7 +181,6 @@ export class UserService {
         await this.fileStorageService.deleteFile(publicId);
       } catch (error) {
         // Log but don't fail if old avatar deletion fails
-        console.warn(`Failed to delete old avatar: ${error.message}`);
       }
     }
 
