@@ -112,20 +112,26 @@ export class AuthController {
   @ApiOperation({ summary: "Logout current user" })
   @ApiResponse({ status: 200, description: "Logged out successfully" })
   async logout(@Res({ passthrough: true }) res: Response) {
+    const isProduction = process.env.NODE_ENV === "production";
+
     res.clearCookie("Authentication", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      path: "/",
     });
     return { message: "Logged out successfully" };
   }
 
   private setCookie(res: Response, token: string) {
+    const isProduction = process.env.NODE_ENV === "production";
+
     res.cookie("Authentication", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProduction, // Required for SameSite: 'None'
+      sameSite: isProduction ? "none" : "lax", // 'None' for cross-domain in prod, 'Lax' for local dev
       maxAge: 24 * 60 * 60 * 1000, // 1 day
+      path: "/", // Ensure cookie is available for all paths
     });
   }
 }
