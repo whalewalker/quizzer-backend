@@ -25,6 +25,9 @@ export class SeedService implements OnApplicationBootstrap {
     }
 
     try {
+      // Check if database is ready
+      await this.prisma.$queryRaw`SELECT 1`;
+      
       const existingAdmin = await this.prisma.user.findUnique({
         where: { email: adminEmail },
       });
@@ -62,7 +65,14 @@ export class SeedService implements OnApplicationBootstrap {
         `Super Admin account created successfully: ${adminEmail}`
       );
     } catch (error) {
-      this.logger.error("Failed to seed Super Admin account", error);
+      if (error.code === 'P2021') {
+        this.logger.error(
+          "Database tables do not exist. Please run 'npx prisma migrate deploy' before starting the application."
+        );
+      } else {
+        this.logger.error("Failed to seed Super Admin account", error.message);
+      }
+      // Don't throw - let the app start so migrations can be run
     }
   }
 }
