@@ -1,5 +1,5 @@
 # ---- Base Image ----
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
@@ -12,12 +12,15 @@ RUN npm install --production=false
 # Copy the full project
 COPY . .
 
+# Generate Prisma Client
+RUN npx prisma generate
+
 # Build the NestJS project
 RUN npm run build
 
 
 # ---- Production Image ----
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
