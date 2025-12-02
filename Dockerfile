@@ -1,41 +1,70 @@
-# ---- Base Image ----
-FROM node:20-alpine AS base
+# ---- Dependencies Stage ----
+FROM node:20-alpine AS dependencies
 
 WORKDIR /app
 
-# Copy package files first for caching
+# Copy package files
 COPY package*.json ./
 
-# Install all dependencies (dev + prod)
-RUN npm install --production=false
+# Install dependencies
+RUN npm ci --only=production && \
+    npm cache clean --force
 
-# Copy the full project
+# ---- Build Stage ----
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
+
+# Copy source code and prisma schema
 COPY . .
 
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Build the NestJS project
+# Build the application
 RUN npm run build
 
-
-# ---- Production Image ----
+# ---- Production Stage ----
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy build artifacts and node_modules from the build stage
-COPY --from=base /app/dist ./dist
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/prisma ./prisma
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Copy production dependencies from dependencies stage
+COPY --from=dependencies /app/node_modules ./node_modules
+
+# Copy built application from build stage
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+
+# Copy necessary files
 COPY package*.json ./
+COPY prisma ./prisma
 
-# Copy startup script
-COPY start.sh ./
-RUN chmod +x start.sh
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001 && \
+    chown -R nestjs:nodejs /app
 
-# Expose the application's port
+USER nestjs
+
+# Expose port
 EXPOSE 3000
 
-# Start the application with migrations
-CMD ["./start.sh"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Run migrations and start the application
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
