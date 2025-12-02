@@ -31,6 +31,7 @@ import { CompanionModule } from "./companion/companion.module";
 import { QuoteModule } from "./quote/quote.module";
 import { SchoolModule } from "./school/school.module";
 import { CoachingModule } from "./coaching/coaching.module";
+import { SettingsModule } from "./settings/settings.module";
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { CoachingModule } from "./coaching/coaching.module";
     QuoteModule,
     SchoolModule,
     CoachingModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [

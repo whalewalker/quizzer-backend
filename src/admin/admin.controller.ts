@@ -61,6 +61,15 @@ export class AdminController {
     return this.adminService.getUserDetails(id);
   }
 
+  @Get("users/:id/content")
+  @ApiOperation({ summary: "Get user's content" })
+  getUserContent(
+    @Param("id") id: string,
+    @Query() filterDto: ContentFilterDto
+  ) {
+    return this.adminService.getUserContent(id, filterDto);
+  }
+
   @Patch("users/:id/status")
   @ApiOperation({ summary: "Update user status (active/suspended)" })
   updateUserStatus(
@@ -89,6 +98,18 @@ export class AdminController {
   @ApiOperation({ summary: "Get all content (quizzes)" })
   getAllContent(@Query() filterDto: ContentFilterDto) {
     return this.adminService.getAllContent(filterDto);
+  }
+
+  @Get("flashcards")
+  @ApiOperation({ summary: "Get all flashcards" })
+  getAllFlashcards(@Query() filterDto: ContentFilterDto) {
+    return this.adminService.getAllFlashcards(filterDto);
+  }
+
+  @Get("challenges")
+  @ApiOperation({ summary: "Get all challenges" })
+  getAllChallenges(@Query() filterDto: ContentFilterDto) {
+    return this.adminService.getAllChallenges(filterDto);
   }
 
   @Get("content/reports")
@@ -143,5 +164,53 @@ export class AdminController {
   @ApiOperation({ summary: "Update platform settings" })
   updateSettings(@Body() settingsDto: PlatformSettingsDto) {
     return this.adminService.updateSettings(settingsDto);
+  }
+
+  @Delete("flashcard/:id")
+  @ApiOperation({ summary: "Delete flashcard set" })
+  deleteFlashcardSet(@Param("id") id: string) {
+    return this.adminService.deleteFlashcardSet(id);
+  }
+
+  @Post("challenges")
+  @ApiOperation({ summary: "Create a new challenge" })
+  createChallenge(@Body() createChallengeDto: any) {
+    return this.adminService.createChallenge(createChallengeDto);
+  }
+
+  @Delete("challenges/:id")
+  @ApiOperation({ summary: "Delete a challenge" })
+  deleteChallenge(@Param("id") id: string) {
+    return this.adminService.deleteChallenge(id);
+  }
+
+  @Get("analytics")
+  @ApiOperation({ summary: "Get comprehensive analytics" })
+  getAnalytics() {
+    return this.adminService.getAnalytics();
+  }
+
+  @Post("challenges/generate/daily")
+  @ApiOperation({ summary: "Manually generate daily challenges" })
+  async generateDailyChallenges() {
+    return this.adminService.generateDailyChallenges();
+  }
+
+  @Post("challenges/generate/weekly")
+  @ApiOperation({ summary: "Manually generate weekly challenges" })
+  async generateWeeklyChallenges() {
+    return this.adminService.generateWeeklyChallenges();
+  }
+
+  @Post("challenges/generate/monthly")
+  @ApiOperation({ summary: "Manually generate monthly challenges" })
+  async generateMonthlyChallenges() {
+    return this.adminService.generateMonthlyChallenges();
+  }
+
+  @Post("challenges/generate/hot")
+  @ApiOperation({ summary: "Manually generate hot challenges" })
+  async generateHotChallenges() {
+    return this.adminService.generateHotChallenges();
   }
 }

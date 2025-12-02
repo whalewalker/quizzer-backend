@@ -1,4 +1,12 @@
-import { IsBoolean, IsEnum, IsOptional, IsString } from "class-validator";
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsArray,
+  IsDateString,
+} from "class-validator";
 import { UserRole } from "@prisma/client";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -100,4 +108,61 @@ export class ModerationActionDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+export class CreateChallengeDto {
+  @ApiProperty()
+  @IsString()
+  title: string;
+
+  @ApiProperty()
+  @IsString()
+  description: string;
+
+  @ApiProperty({ enum: ["daily", "weekly", "monthly", "hot"] })
+  @IsEnum(["daily", "weekly", "monthly", "hot"])
+  type: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiProperty()
+  @IsNumber()
+  target: number;
+
+  @ApiProperty()
+  @IsNumber()
+  reward: number;
+
+  @ApiProperty()
+  @IsDateString()
+  startDate: Date;
+
+  @ApiProperty()
+  @IsDateString()
+  endDate: Date;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  rules?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  timeLimit?: number;
+
+  @ApiProperty({
+    enum: ["STANDARD", "TIMED", "SCENARIO", "SPEED", "ACCURACY", "MIXED"],
+    default: "STANDARD",
+  })
+  @IsEnum(["STANDARD", "TIMED", "SCENARIO", "SPEED", "ACCURACY", "MIXED"])
+  format: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  quizIds?: string[];
 }

@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../prisma/prisma.service";
@@ -10,16 +11,26 @@ import { SignupDto, LoginDto, GoogleAuthDto } from "./dto/auth.dto";
 import { auth } from "../config/firebase.config";
 
 import { SchoolService } from "../school/school.service";
+import { SettingsService } from "../settings/settings.service";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly schoolService: SchoolService
+    private readonly schoolService: SchoolService,
+    private readonly settingsService: SettingsService
   ) {}
 
   async signup(signupDto: SignupDto) {
+    // Check if registration is allowed
+    const settings = await this.settingsService.getPublicSettings();
+    if (!settings.allowRegistration) {
+      throw new ForbiddenException(
+        "Registration is currently disabled. Please check back later or contact support."
+      );
+    }
+
     const { email, password, name } = signupDto;
 
     // Check if user already exists
@@ -95,6 +106,14 @@ export class AuthService {
           });
         }
       } else {
+        // Check if registration is allowed
+        const settings = await this.settingsService.getPublicSettings();
+        if (!settings.allowRegistration) {
+          throw new ForbiddenException(
+            "Registration is currently disabled. Please check back later or contact support."
+          );
+        }
+
         // Create new user
         user = await this.prisma.user.create({
           data: {
