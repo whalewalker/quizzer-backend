@@ -108,9 +108,15 @@ export class QuizProcessor extends WorkerHost {
       this.logger.debug(`Job ${job.id}: Saving quiz to database`);
 
       // Convert quizType string to enum
-      const quizTypeEnum = dto.quizType
-        ? (dto.quizType.toUpperCase().replace(/-/g, "_") as QuizType)
-        : QuizType.STANDARD;
+      let quizTypeEnum: QuizType = QuizType.STANDARD;
+      if (dto.quizType) {
+        const typeMap: Record<string, QuizType> = {
+          standard: QuizType.STANDARD,
+          timed: QuizType.TIMED_TEST,
+          scenario: QuizType.SCENARIO_BASED,
+        };
+        quizTypeEnum = typeMap[dto.quizType.toLowerCase()] || QuizType.STANDARD;
+      }
 
       const quiz = await this.prisma.quiz.create({
         data: {
