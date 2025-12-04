@@ -358,6 +358,15 @@ export class QuizService {
         ),
       );
 
+    // Check if this was an onboarding assessment
+    if (quiz.tags && quiz.tags.includes("Onboarding")) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { onboardingAssessmentCompleted: true },
+      });
+      this.logger.log(`User ${userId} completed onboarding assessment`);
+    }
+
     this.logger.log(
       `Quiz ${quizId} submitted: ${correctCount}/${questions.length} correct`,
     );

@@ -15,7 +15,7 @@ export const {
   },
   size: 64,
   ignoredMethods: ["GET", "HEAD", "OPTIONS"],
-  getCsrfTokenFromRequest: (_req) => req.headers["x-csrf-token"],
+  getCsrfTokenFromRequest: (req) => req.headers["x-csrf-token"],
   getSessionIdentifier: (_req) => "api-session",
 }) as any;
 

@@ -1,16 +1,17 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { TaskStatus, TaskType } from "@prisma/client";
 
 @Injectable()
 export class TaskService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createTask(userId: string, type: string) {
+  async createTask(userId: string, type: TaskType) {
     return this.prisma.task.create({
       data: {
         userId,
         type,
-        status: "PENDING",
+        status: TaskStatus.PENDING,
       },
     });
   }
@@ -29,9 +30,9 @@ export class TaskService {
 
   async updateTask(
     taskId: string,
-    status: string,
+    status: TaskStatus,
     result?: any,
-    error?: string,
+    error?: string
   ) {
     return this.prisma.task.update({
       where: { id: taskId },

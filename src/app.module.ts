@@ -7,6 +7,7 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { PrismaModule } from "./prisma/prisma.module";
 import { CacheModule } from "./cache/cache.module";
+import { OnboardingModule } from "./onboarding/onboarding.module";
 import { AiModule } from "./ai/ai.module";
 import { AuthModule } from "./auth/auth.module";
 import { QuizModule } from "./quiz/quiz.module";
@@ -94,6 +95,7 @@ import { SettingsModule } from "./settings/settings.module";
     SchoolModule,
     CoachingModule,
     SettingsModule,
+    OnboardingModule,
   ],
   controllers: [AppController],
   providers: [

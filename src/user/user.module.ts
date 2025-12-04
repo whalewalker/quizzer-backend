@@ -3,8 +3,10 @@ import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { PrismaModule } from "../prisma/prisma.module";
 
+import { SchoolModule } from "../school/school.module";
+
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, SchoolModule],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],

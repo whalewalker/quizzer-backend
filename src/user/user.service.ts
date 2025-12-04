@@ -14,12 +14,15 @@ import {
   FILE_STORAGE_SERVICE,
 } from "../file-storage/interfaces/file-storage.interface";
 
+import { SchoolService } from "../school/school.service";
+
 @Injectable()
 export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(FILE_STORAGE_SERVICE)
     private readonly fileStorageService: IFileStorageService,
+    private readonly schoolService: SchoolService
   ) {}
 
   async getProfile(userId: string) {
@@ -74,15 +77,27 @@ export class UserService {
       throw new NotFoundException("User not found");
     }
 
+    let schoolId = undefined;
+    if (updateProfileDto.schoolName) {
+      const school = await this.schoolService.findOrCreate(
+        updateProfileDto.schoolName
+      );
+      schoolId = school.id;
+    }
+
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: updateProfileDto,
+      data: {
+        ...updateProfileDto,
+        schoolId,
+      },
       select: {
         id: true,
         email: true,
         name: true,
         avatar: true,
         schoolName: true,
+        schoolId: true,
         grade: true,
         preferences: true,
         createdAt: true,
@@ -135,7 +150,7 @@ export class UserService {
     // Verify current password
     const isPasswordValid = await bcrypt.compare(
       changePasswordDto.currentPassword,
-      user.password,
+      user.password
     );
 
     if (!isPasswordValid) {
