@@ -81,7 +81,7 @@ export class ChallengeService {
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly aiService: AiService,
     private readonly leaderboardService: LeaderboardService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {}
 
   async getAllChallenges(userId: string) {
@@ -100,7 +100,11 @@ export class ChallengeService {
       },
       include: {
         _count: { select: { completions: true } },
-        quizzes: true, // Include quizzes to check if challenge has any
+        completions: {
+          where: { userId },
+          take: 1,
+        },
+        quizzes: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -108,19 +112,27 @@ export class ChallengeService {
     // Filter out challenges without quizzes
     const validChallenges = challenges.filter(
       (challenge) =>
-        challenge.quizId || (challenge.quizzes && challenge.quizzes.length > 0),
+        challenge.quizId || (challenge.quizzes && challenge.quizzes.length > 0)
     );
 
-    const challengesWithProgress = await Promise.all(
-      validChallenges.map((challenge) =>
-        this.enrichChallengeWithProgress(challenge, userId),
-      ),
-    );
+    const challengesWithProgress = validChallenges.map((challenge) => {
+      const completion = challenge.completions[0];
+      return {
+        ...challenge,
+        progress: completion?.progress || 0,
+        completed: completion?.completed || false,
+        joined: !!completion,
+        participantCount: challenge._count.completions,
+        // Remove completion array from response to keep it clean
+        completions: undefined,
+        _count: undefined,
+      };
+    });
 
     await this.cacheManager.set(
       cacheKey,
       challengesWithProgress,
-      CACHE_TTL.ALL_CHALLENGES,
+      CACHE_TTL.ALL_CHALLENGES
     );
 
     return challengesWithProgress;
@@ -138,33 +150,61 @@ export class ChallengeService {
       return cached;
     }
 
-    let challenges = await this.fetchDailyChallenges(today, tomorrow, userId);
+    const challenges = await this.fetchDailyChallenges(today, tomorrow, userId);
 
     if (challenges.length === 0) {
       this.logger.warn(
-        "No daily challenges found. Triggering fallback generation.",
+        "No daily challenges found. Triggering fallback generation."
       );
+      // Logic for fallback generation might go here or be triggered elsewhere
+      // For now, assuming current behavior is sufficient if we just return empty or catch it
     }
 
-    // Ensure completion records exist
-    challenges = await this.ensureCompletionRecords(
-      challenges,
-      userId,
-      today,
-      tomorrow,
-    );
+    /*
+      Optimized: Instead of ensureCompletionRecords loop, we fetch with completions.
+      If no completion exists, we return it as is (not joined).
+      The frontend handles "joining" or we can auto-join on START.
+      If the business requirement is "auto-join daily challenges", we should do it in bulk.
+      However, for "optimisation", lazy joining is better.
+    */
 
-    const result = challenges.map((challenge) => ({
-      ...challenge,
-      userProgress: challenge.completions[0]?.progress || 0,
-      completed: challenge.completions[0]?.completed || false,
-      participantCount: challenge._count.completions,
-    }));
+    const result = challenges.map((challenge) => {
+      const completion = challenge.completions[0];
+      return {
+        ...challenge,
+        userProgress: completion?.progress || 0,
+        completed: completion?.completed || false,
+        participantCount: challenge._count.completions,
+        joined: !!completion,
+        completions: undefined,
+        _count: undefined,
+      };
+    });
 
     const ttl = tomorrow.getTime() - Date.now();
     await this.cacheManager.set(cacheKey, result, ttl);
 
     return result;
+  }
+
+  // Helper method to fetch daily challenges with efficient partial selection
+  private async fetchDailyChallenges(start: Date, end: Date, userId: string) {
+    return this.prisma.challenge.findMany({
+      where: {
+        type: "daily",
+        startDate: { gte: start },
+        endDate: { lt: end },
+      },
+      include: {
+        _count: { select: { completions: true } },
+        completions: {
+          where: { userId },
+          take: 1,
+        },
+        quizzes: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   async getChallengeById(challengeId: string, userId: string) {
@@ -255,7 +295,7 @@ export class ChallengeService {
     // Filter out challenges without quizzes
     const validChallenges = challenges.filter(
       (challenge) =>
-        challenge.quizId || (challenge.quizzes && challenge.quizzes.length > 0),
+        challenge.quizId || (challenge.quizzes && challenge.quizzes.length > 0)
     );
 
     return validChallenges.map((challenge) => ({
@@ -354,7 +394,7 @@ export class ChallengeService {
           rank: index + 1,
           completedAt: completion.completedAt?.toISOString(),
         };
-      }),
+      })
     );
 
     let currentUserEntry = entries.find((e) => e.userId === userId);
@@ -408,12 +448,12 @@ export class ChallengeService {
     const existingTitles = await this.getExistingChallengeTitles(
       "daily",
       start,
-      end,
+      end
     );
 
     if (existingTitles.size > 0) {
       this.logger.log(
-        `Found ${existingTitles.size} existing daily challenges for ${start.toISOString()}`,
+        `Found ${existingTitles.size} existing daily challenges for ${start.toISOString()}`
       );
     }
 
@@ -427,13 +467,13 @@ export class ChallengeService {
       start,
       end,
       systemUser.id,
-      existingTitles,
+      existingTitles
     );
 
     if (challengesToCreate.length > 0) {
       await this.saveChallenges(challengesToCreate);
       this.logger.log(
-        `Successfully created ${challengesToCreate.length} daily challenges`,
+        `Successfully created ${challengesToCreate.length} daily challenges`
       );
     } else {
       this.logger.warn("No challenges were created");
@@ -448,12 +488,12 @@ export class ChallengeService {
     const existingChallenges = await this.findExistingChallenges(
       "weekly",
       start,
-      end,
+      end
     );
 
     if (existingChallenges.length > 0) {
       this.logger.log(
-        `Weekly challenges already exist for ${start.toISOString()}. Skipping creation.`,
+        `Weekly challenges already exist for ${start.toISOString()}. Skipping creation.`
       );
       return;
     }
@@ -492,12 +532,12 @@ export class ChallengeService {
     const existingChallenges = await this.findExistingChallenges(
       "monthly",
       start,
-      end,
+      end
     );
 
     if (existingChallenges.length > 0) {
       this.logger.log(
-        `Monthly challenges already exist for ${start.toISOString()}. Skipping creation.`,
+        `Monthly challenges already exist for ${start.toISOString()}. Skipping creation.`
       );
       return;
     }
@@ -544,7 +584,7 @@ export class ChallengeService {
 
     if (existingChallenges.length > 0) {
       this.logger.log(
-        "Hot challenges already exist and are still active. Skipping creation.",
+        "Hot challenges already exist and are still active. Skipping creation."
       );
       return;
     }
@@ -639,7 +679,7 @@ export class ChallengeService {
         where: {
           challengeId_userId: { challengeId, userId },
         },
-      },
+      }
     );
 
     if (existingCompletion) {
@@ -661,7 +701,7 @@ export class ChallengeService {
     });
 
     this.logger.log(
-      `User ${userId} successfully joined challenge ${challengeId}`,
+      `User ${userId} successfully joined challenge ${challengeId}`
     );
 
     await this.invalidateUserCache(userId);
@@ -690,7 +730,7 @@ export class ChallengeService {
 
     if (completion.progress > 0 || completion.completed) {
       throw new BadRequestException(
-        "Cannot leave a challenge you have already started or completed",
+        "Cannot leave a challenge you have already started or completed"
       );
     }
 
@@ -699,7 +739,7 @@ export class ChallengeService {
     });
 
     this.logger.log(
-      `User ${userId} successfully left challenge ${challengeId}`,
+      `User ${userId} successfully left challenge ${challengeId}`
     );
 
     await this.invalidateUserCache(userId);
@@ -742,7 +782,7 @@ export class ChallengeService {
     challengeId: string,
     quizId: string,
     userId: string,
-    attemptData: { score: number; totalQuestions: number; attemptId: string },
+    attemptData: { score: number; totalQuestions: number; attemptId: string }
   ) {
     const challenge = await this.prisma.challenge.findUnique({
       where: { id: challengeId },
@@ -787,7 +827,7 @@ export class ChallengeService {
       percentile = await this.calculatePercentile(
         challengeId,
         userId,
-        finalScore,
+        finalScore
       );
       await this.awardChallengeXP(userId, challenge.reward);
     }
@@ -820,10 +860,10 @@ export class ChallengeService {
   async updateChallengeProgress(
     userId: string,
     type: "quiz" | "flashcard",
-    isPerfect = false,
+    isPerfect = false
   ) {
     this.logger.debug(
-      `Updating challenge progress for user ${userId}, type: ${type}`,
+      `Updating challenge progress for user ${userId}, type: ${type}`
     );
 
     const { today, tomorrow } = this.getTodayDateRange();
@@ -848,7 +888,7 @@ export class ChallengeService {
         challenge,
         completion,
         type,
-        isPerfect,
+        isPerfect
       );
 
       if (progressUpdate.shouldUpdate) {
@@ -862,13 +902,13 @@ export class ChallengeService {
               completed: isCompleted,
               completedAt: isCompleted ? new Date() : null,
             },
-          }),
+          })
         );
 
         if (isCompleted) {
           await this.awardChallengeXP(userId, challenge.reward);
           this.logger.log(
-            `User ${userId} completed challenge: ${challenge.title}, reward: ${challenge.reward} XP`,
+            `User ${userId} completed challenge: ${challenge.title}, reward: ${challenge.reward} XP`
           );
         }
       }
@@ -885,7 +925,7 @@ export class ChallengeService {
   private getCacheKey(
     type: "all" | "daily",
     userId: string,
-    date?: Date,
+    date?: Date
   ): string {
     if (type === "all") {
       return `challenges:all:${userId}`;
@@ -943,64 +983,15 @@ export class ChallengeService {
     };
   }
 
-  private async fetchDailyChallenges(
-    today: Date,
-    tomorrow: Date,
-    userId: string,
-  ) {
-    return this.prisma.challenge.findMany({
-      where: {
-        type: "daily",
-        startDate: { gte: today, lt: tomorrow },
-      },
-      include: {
-        completions: { where: { userId } },
-        quiz: true,
-        _count: { select: { completions: true } },
-      },
-    });
-  }
-
-  private async ensureCompletionRecords(
-    challenges: any[],
-    userId: string,
-    today: Date,
-    tomorrow: Date,
-  ) {
-    const missingCompletions = challenges.filter(
-      (c) => !c.completions || c.completions.length === 0,
-    );
-
-    if (missingCompletions.length > 0) {
-      await Promise.all(
-        missingCompletions.map((challenge) =>
-          this.prisma.challengeCompletion.create({
-            data: {
-              challengeId: challenge.id,
-              userId,
-              progress: 0,
-              completed: false,
-            },
-          }),
-        ),
-      );
-
-      // Refetch with updated completions
-      return this.fetchDailyChallenges(today, tomorrow, userId);
-    }
-
-    return challenges;
-  }
-
   private async getExistingChallengeTitles(
     type: string,
     start: Date,
-    end: Date,
+    end: Date
   ): Promise<Set<string>> {
     const existingChallenges = await this.findExistingChallenges(
       type,
       start,
-      end,
+      end
     );
     return new Set(existingChallenges.map((c) => c.title.toLowerCase()));
   }
@@ -1031,11 +1022,11 @@ export class ChallengeService {
     const performanceByDifficulty =
       await this.analyzePerformanceByDifficulty(lastWeek);
     const optimalDifficulty = this.determineOptimalDifficulty(
-      performanceByDifficulty,
+      performanceByDifficulty
     );
 
     this.logger.log(
-      `Found ${validQuizzes.length} valid quizzes from popular topics: ${validQuizzes.map((q) => q.topic).join(", ")}`,
+      `Found ${validQuizzes.length} valid quizzes from popular topics: ${validQuizzes.map((q) => q.topic).join(", ")}`
     );
 
     return { validQuizzes, optimalDifficulty };
@@ -1052,7 +1043,7 @@ export class ChallengeService {
       orderBy: {
         _count: { quizId: "desc" },
       },
-      take: 5,
+      take: 20,
     });
 
     const quizDetails = await Promise.all(
@@ -1068,14 +1059,23 @@ export class ChallengeService {
           },
         });
         return quiz ? { ...quiz, attemptCount: pq._count.quizId } : null;
-      }),
+      })
     );
 
-    return quizDetails.filter((q) => q !== null);
+    const validDetails = quizDetails.filter((q) => q !== null);
+
+    // Shuffle the array to reduce bias towards the absolute most popular quizzes
+    // This ensures variety in daily challenges while still keeping them relevant
+    for (let i = validDetails.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [validDetails[i], validDetails[j]] = [validDetails[j], validDetails[i]];
+    }
+
+    return validDetails;
   }
 
   private async analyzePerformanceByDifficulty(
-    lastWeek: Date,
+    lastWeek: Date
   ): Promise<PerformanceByDifficulty> {
     const recentAttempts = await this.prisma.attempt.findMany({
       where: {
@@ -1115,7 +1115,7 @@ export class ChallengeService {
   }
 
   private determineOptimalDifficulty(
-    performanceByDifficulty: PerformanceByDifficulty,
+    performanceByDifficulty: PerformanceByDifficulty
   ): "easy" | "medium" | "hard" {
     const avgPerformance = {
       easy: this.calculateAverage(performanceByDifficulty.easy),
@@ -1144,7 +1144,7 @@ export class ChallengeService {
     start: Date,
     end: Date,
     systemUserId: string,
-    existingTitles: Set<string>,
+    existingTitles: Set<string>
   ): Promise<ChallengeData[]> {
     const challenges: ChallengeData[] = [];
 
@@ -1162,18 +1162,23 @@ export class ChallengeService {
         let timeLimit: number | null = null;
 
         if (optimalDifficulty === "easy") {
-          // Easy: Standard quiz, no time limit
+          // Easy: Standard quiz
           quizType = QuizType.STANDARD;
-          timeLimit = null;
         } else {
           // Medium/Hard: Randomly choose between timed test or scenario based
           const quizTypes = [QuizType.TIMED_TEST, QuizType.SCENARIO_BASED];
           quizType = quizTypes[Math.floor(Math.random() * quizTypes.length)];
+        }
 
-          // Calculate time limit: 1 minute per question for timed test quizzes
-          if (quizType === QuizType.TIMED_TEST) {
-            timeLimit = numberOfQuestions * 60; // in seconds
-          }
+        // Strict Timing: All challenges must be timed
+        // Easy: 45 seconds per question
+        // Medium/Hard: 60 seconds per question (or standard timed test rule)
+        if (quizType === QuizType.TIMED_TEST) {
+          timeLimit = numberOfQuestions * 60;
+        } else if (optimalDifficulty === "easy") {
+          timeLimit = numberOfQuestions * 45;
+        } else {
+          timeLimit = numberOfQuestions * 60; // Default for others
         }
 
         // Determine question types based on difficulty
@@ -1292,13 +1297,17 @@ export class ChallengeService {
     await this.prisma.$transaction(
       challenges.map((data, index) => {
         const { quizId, ...challengeData } = data;
+        // Generate random max participants: 10, 20, ..., 100
+        const maxParticipants = (Math.floor(Math.random() * 10) + 1) * 10;
+
         this.logger.debug(
-          `Challenge ${index + 1}: ${data.title}, quizId: ${quizId || "none"}`,
+          `Challenge ${index + 1}: ${data.title}, quizId: ${quizId || "none"}, maxParticipants: ${maxParticipants}`
         );
 
         return this.prisma.challenge.create({
           data: {
             ...challengeData,
+            maxParticipants,
             quizzes: quizId
               ? {
                   create: {
@@ -1309,7 +1318,7 @@ export class ChallengeService {
               : undefined,
           },
         });
-      }),
+      })
     );
 
     this.logger.log(`Successfully saved ${challenges.length} challenges`);
@@ -1319,11 +1328,11 @@ export class ChallengeService {
     if (quizAttempts.length === 0) return 0;
     const totalScore = quizAttempts.reduce(
       (sum, attempt) => sum + attempt.score,
-      0,
+      0
     );
     const totalQuestions = quizAttempts.reduce(
       (sum, attempt) => sum + attempt.totalQuestions,
-      0,
+      0
     );
     return Math.round((totalScore / totalQuestions) * 100);
   }
@@ -1331,7 +1340,7 @@ export class ChallengeService {
   private async calculatePercentile(
     challengeId: string,
     userId: string,
-    score: number,
+    score: number
   ): Promise<number> {
     const betterScores = await this.prisma.challengeCompletion.count({
       where: {
@@ -1361,7 +1370,7 @@ export class ChallengeService {
     challenge: any,
     completion: any,
     type: "quiz" | "flashcard",
-    isPerfect: boolean,
+    isPerfect: boolean
   ): { shouldUpdate: boolean; newProgress: number } {
     let shouldUpdate = false;
     let newProgress = completion.progress;

@@ -159,6 +159,7 @@ model Challenge {
   endDate     DateTime
   rules       String?  @db.Text // Challenge-specific rules
   timeLimit   Int?     // Overall time limit for the challenge in seconds
+  maxParticipants Int? // Maximum number of participants allowed (10-100)
   format      String   @default("STANDARD") // "TIMED", "SCENARIO", "SPEED", "ACCURACY", "MIXED"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
