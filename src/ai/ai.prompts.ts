@@ -5,7 +5,7 @@ export class AiPrompts {
     difficulty: string,
     quizType: string,
     questionTypeInstructions: string,
-    sourceContent: string = "",
+    sourceContent: string = ""
   ) {
     return `
 You are an expert quiz generator. Generate ${numberOfQuestions} questions based on the following:
@@ -26,6 +26,7 @@ Requirements:
 4. Provide brief explanations for correct answers
 5. Make questions appropriate for the quiz type and difficulty level
 6. If content is provided, include a "citation" field indicating the source text or section for the answer
+7. **Contextualize for Nigerian Students**: Use examples, names, and scenarios relevant to Nigeria (e.g., Nigerian names like Emeka/Aisha, cities like Lagos/Abuja, Naira currency, local context) where applicable to make it relatable.
 
 Return ONLY a valid JSON object in this exact format (no markdown, no code blocks):
 {
@@ -45,7 +46,8 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
     {
       "questionType": "single-select",
       "question": "Question text?",
-      "options": ["Option A", "Option B", "Option C", "Option D"] // Instruction for AI: List only the option text. Do NOT include labels like A), B), C), or D). Just provide the text of each option.      "correctAnswer": 0,
+      "options": ["Option A", "Option B", "Option C", "Option D"], // Instruction for AI: List only the option text. Do NOT include labels like A), B), C), or D). Just provide the text of each option.
+      "correctAnswer": 0,
       "explanation": "Brief explanation",
       "citation": "Source text reference (optional)"
     },
@@ -84,7 +86,7 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
   static generateFlashcards(
     topic: string,
     numberOfCards: number,
-    sourceContent: string = "",
+    sourceContent: string = ""
   ) {
     return `
 You are an expert flashcard creator. Generate ${numberOfCards} flashcards based on the following:
@@ -99,6 +101,7 @@ Requirements:
 4. Focus on key concepts, definitions, and important facts
 5. Make cards clear and educational
 6. Avoid overly complex or ambiguous cards
+7. **Cultural Relevance**: Use examples and contexts relevant to Nigerian students to enhance understanding and retention.
 
 Return ONLY a valid JSON object in this exact format (no markdown, no code blocks):
 {
@@ -117,7 +120,7 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
 
   static generateRecommendations(weakTopics: string[], recentAttempts: any[]) {
     return `
-Analyze the following user learning data and generate 3-5 personalized study recommendations:
+Analyze the following user learning data and generate 3-5 personalized study recommendations for a Nigerian student:
 
 Weak Topics: ${JSON.stringify(weakTopics)}
 Recent Performance: ${JSON.stringify(recentAttempts.slice(0, 10))}
@@ -126,6 +129,7 @@ Generate recommendations focusing on:
 1. Topics where the user scored poorly
 2. Topics not practiced recently
 3. Progressive learning paths
+4. Encouraging tone suitable for a motivated student.
 
 Return ONLY a valid JSON array in this exact format (no markdown, no code blocks):
 [
@@ -139,7 +143,7 @@ Return ONLY a valid JSON array in this exact format (no markdown, no code blocks
   }
 
   static generateContent(topic: string) {
-    return `Generate comprehensive educational content about: ${topic}. Include key concepts, explanations, and examples.`;
+    return `Generate comprehensive educational content about: ${topic}, tailored for a Nigerian student audience. Include key concepts, explanations, and examples relevant to the region (e.g. using local context).`;
   }
 
   static extractTopic(text: string) {
@@ -147,7 +151,7 @@ Return ONLY a valid JSON array in this exact format (no markdown, no code blocks
   }
   static generateLearningGuide(topic: string, sourceContent: string = "") {
     return `
-You are an expert educational content creator. Create a structured learning guide for the following:
+You are an expert educational content creator. Create a structured learning guide for the following, tailored for a Nigerian student:
 
 ${topic ? `Topic: ${topic}` : ""}
 ${sourceContent ? `Content:\n${sourceContent}` : ""}
@@ -155,7 +159,7 @@ ${sourceContent ? `Content:\n${sourceContent}` : ""}
 Requirements:
 1. Extract the most important key concepts
 2. Create a logical flow of sections
-3. For each section, provide a clear explanation, and if possible, an analogy or example
+3. For each section, provide a clear explanation, and if possible, an analogy or example relevant to a Nigerian context (e.g., using Naira, local markets, familiar cities like Lagos/Abuja).
 4. Suggest next steps for the learner
 5. Keep the tone encouraging, clear, and concise (no "AI" fluff)
 6. **FORMATTING IS CRITICAL**:
@@ -183,7 +187,7 @@ Return ONLY a valid JSON object in this exact format (no markdown, no code block
 
   static generateExplanation(topic: string, context: string) {
     return `
-You are an expert, friendly tutor who excels at making complex topics easy to understand. 
+You are an expert, friendly tutor who excels at making complex topics easy to understand for Nigerian students. 
 Provide a clearer, simpler explanation for the following concept:
 
 Topic: ${topic}
@@ -197,7 +201,7 @@ Requirements:
    - Use lists (bullet points) to break down steps or features.
    - Use > blockquotes for important takeaways or analogies.
 4. Break down complex ideas into digestible parts.
-5. Use a powerful analogy if it helps clarify the concept.
+5. Use a powerful analogy if it helps clarify the concept, preferably actionable within a Nigerian context (e.g. daily life in Nigeria).
 
 Return the explanation in valid Markdown format.
 `;
@@ -205,7 +209,7 @@ Return the explanation in valid Markdown format.
 
   static generateExample(topic: string, context: string) {
     return `
-You are an expert, practical tutor. Provide concrete, real-world examples for the following concept:
+You are an expert, practical tutor. Provide concrete, real-world examples for the following concept, tailored for a Nigerian audience:
 
 Topic: ${topic}
 Context: ${context}
@@ -218,7 +222,7 @@ Requirements:
    - Use **bold** for important parts.
    - Use lists to explain the breakdown of the example.
 4. Explain *why* each example fits the concept.
-5. Relate it to real-world scenarios that are easy to visualize (e.g. money, cooking, travel, sports). Avoid abstract math examples unless the topic is specifically abstract math.
+5. Relate it to real-world scenarios in Nigeria (e.g. Naira, markets, football, local food like Jollof rice, popular culture). Avoid abstract math examples unless the topic is specifically abstract math.
 
 Return the examples in valid Markdown format.
 `;

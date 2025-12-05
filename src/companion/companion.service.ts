@@ -29,7 +29,7 @@ export class CompanionService {
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
     private readonly assessmentService: AssessmentService,
-    private readonly insightsService: InsightsService,
+    private readonly insightsService: InsightsService
   ) {}
 
   /**
@@ -73,7 +73,7 @@ export class CompanionService {
       } else if (streak.currentStreak === 0) {
         const lastActivity = new Date(streak.lastActivityDate);
         const daysSince = Math.floor(
-          (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24),
+          (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24)
         );
         if (daysSince === 1) {
           messages.push({
@@ -93,7 +93,7 @@ export class CompanionService {
 
     // Progress celebration
     const masteryCount = topicProgress.filter(
-      (tp) => tp.retentionLevel === RetentionLevel.MASTERY,
+      (tp) => tp.retentionLevel === RetentionLevel.MASTERY
     ).length;
     if (masteryCount > 0 && masteryCount % 5 === 0) {
       messages.push({
@@ -123,7 +123,7 @@ export class CompanionService {
     if (performance.attemptCount > 10 && messages.length < 3) {
       const reflectiveQuestion = await this.generateReflectiveQuestion(
         userId,
-        performance,
+        performance
       );
       messages.push({
         type: "reflection",
@@ -171,7 +171,7 @@ export class CompanionService {
    */
   private async generateReflectiveQuestion(
     userId: string,
-    performance: any,
+    performance: any
   ): Promise<string> {
     try {
       const prompt = `Generate a brief, thoughtful reflection question for a learner with these stats:
@@ -180,7 +180,7 @@ export class CompanionService {
 - Weak topics: ${performance.weakTopics.join(", ") || "None yet"}
 - Total attempts: ${performance.attemptCount}
 
-The question should be encouraging, help them think about their learning process, and be 1-2 sentences max.`;
+The question should be encouraging, help them think about their learning process, and be 1-2 sentences max. Tailor the tone to be relatable to a Nigerian student.`;
 
       const question = await this.aiService.generateContent({
         prompt,
@@ -215,7 +215,7 @@ The question should be encouraging, help them think about their learning process
       focusTopics: insights.toRevise.topics.slice(0, 3),
       estimatedDuration: this.estimateSessionDuration(
         timing.dueTopics.length,
-        quizRecommendations.length,
+        quizRecommendations.length
       ),
     };
   }
@@ -225,7 +225,7 @@ The question should be encouraging, help them think about their learning process
    */
   private estimateSessionDuration(
     dueTopicsCount: number,
-    quizCount: number,
+    quizCount: number
   ): number {
     // Rough estimate: 10 minutes per quiz, 5 minutes per review topic
     return dueTopicsCount * 5 + quizCount * 10;
@@ -239,7 +239,7 @@ The question should be encouraging, help them think about their learning process
     type: string,
     duration: number,
     itemsStudied: number,
-    performance?: number,
+    performance?: number
   ) {
     this.logger.log(`Tracking study session for user ${userId}`);
 
@@ -303,7 +303,7 @@ The question should be encouraging, help them think about their learning process
 - Average score: ${performance.averageScore.toFixed(0)}%
 - Total attempts: ${performance.attemptCount}
 
-Keep it to 1-2 sentences, friendly and encouraging.`;
+Keep it to 1-2 sentences, friendly and encouraging. Tailor the tone to be relatable to a Nigerian student.`;
 
       const motivation = await this.aiService.generateContent({
         prompt,
