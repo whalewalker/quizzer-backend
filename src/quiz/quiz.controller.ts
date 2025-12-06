@@ -38,16 +38,16 @@ export class QuizController {
   @ApiResponse({ status: 400, description: "Invalid input data" })
   @UseInterceptors(
     PdfOnly({ maxFiles: 5, maxSizePerFile: 5 * 1024 * 1024 }),
-    FilesInterceptor("files", 5),
+    FilesInterceptor("files", 5)
   )
   async generateQuiz(
     @CurrentUser("sub") userId: string,
     @Body() dto: GenerateQuizDto,
-    @UploadedFiles() files?: Express.Multer.File[],
+    @UploadedFiles() files?: Express.Multer.File[]
   ) {
     if (!dto.topic && !dto.content && (!files || files.length === 0)) {
       throw new BadRequestException(
-        "Please provide either a topic, content, or upload files",
+        "Please provide either a topic, content, or upload files"
       );
     }
 
@@ -60,9 +60,20 @@ export class QuizController {
   @ApiResponse({ status: 404, description: "Job not found" })
   async getJobStatus(
     @Param("jobId") jobId: string,
-    @CurrentUser("sub") userId: string,
+    @CurrentUser("sub") userId: string
   ) {
     return this.quizService.getJobStatus(jobId, userId);
+  }
+
+  @Get("attempt/:id")
+  @ApiOperation({ summary: "Get a specific attempt by ID" })
+  @ApiResponse({ status: 200, description: "Attempt details" })
+  @ApiResponse({ status: 404, description: "Attempt not found" })
+  async getAttempt(
+    @Param("id") id: string,
+    @CurrentUser("sub") userId: string
+  ) {
+    return this.quizService.getAttemptById(id, userId);
   }
 
   @Get()
@@ -78,7 +89,7 @@ export class QuizController {
   @ApiResponse({ status: 404, description: "Quiz not found" })
   async getQuizById(
     @Param("id") id: string,
-    @CurrentUser("sub") userId: string,
+    @CurrentUser("sub") userId: string
   ) {
     return this.quizService.getQuizById(id, userId);
   }
@@ -90,7 +101,7 @@ export class QuizController {
   async submitQuiz(
     @Param("id") id: string,
     @CurrentUser("sub") userId: string,
-    @Body() dto: SubmitQuizDto,
+    @Body() dto: SubmitQuizDto
   ) {
     return this.quizService.submitQuiz(userId, id, dto);
   }
@@ -101,7 +112,7 @@ export class QuizController {
   @ApiResponse({ status: 404, description: "Quiz not found" })
   async deleteQuiz(
     @Param("id") id: string,
-    @CurrentUser("sub") userId: string,
+    @CurrentUser("sub") userId: string
   ) {
     return this.quizService.deleteQuiz(id, userId);
   }

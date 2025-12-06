@@ -320,6 +320,21 @@ export class ChallengeService {
   }
 
   async getChallengeProgress(challengeId: string, userId: string) {
+    const cacheKey = this.getCacheKey(
+      "progress",
+      userId,
+      undefined,
+      challengeId
+    );
+    const cached = await this.cacheManager.get(cacheKey);
+
+    if (cached) {
+      this.logger.debug(
+        `Cache hit for challenge progress ${challengeId}, user ${userId}`
+      );
+      return cached;
+    }
+
     const challenge = await this.prisma.challenge.findUnique({
       where: { id: challengeId },
       include: {
@@ -351,7 +366,7 @@ export class ChallengeService {
       };
     }
 
-    return {
+    const result = {
       currentQuizIndex: completion.currentQuizIndex,
       totalQuizzes,
       completedQuizzes: completion.currentQuizIndex,
@@ -360,6 +375,9 @@ export class ChallengeService {
       percentile: completion.percentile,
       completed: completion.completed,
     };
+
+    await this.cacheManager.set(cacheKey, result, 300000); // 5 minutes cache
+    return result;
   }
 
   async getChallengeLeaderboard(challengeId: string, userId: string) {
@@ -829,7 +847,11 @@ export class ChallengeService {
         userId,
         finalScore
       );
-      await this.awardChallengeXP(userId, challenge.reward);
+      const xpAmount =
+        finalScore >= 75
+          ? challenge.reward
+          : Math.floor(challenge.reward * (finalScore / 100));
+      await this.awardChallengeXP(userId, xpAmount);
     }
 
     await this.prisma.challengeCompletion.update({
@@ -846,6 +868,9 @@ export class ChallengeService {
     });
 
     await this.invalidateUserCache(userId);
+    await this.cacheManager.del(
+      this.getCacheKey("progress", userId, undefined, challengeId)
+    );
 
     return {
       currentQuizIndex: nextQuizIndex,
@@ -911,6 +936,11 @@ export class ChallengeService {
             `User ${userId} completed challenge: ${challenge.title}, reward: ${challenge.reward} XP`
           );
         }
+
+        // Invalidate specific challenge progress
+        await this.cacheManager.del(
+          this.getCacheKey("progress", userId, undefined, challenge.id)
+        );
       }
     }
 
@@ -923,12 +953,16 @@ export class ChallengeService {
   // ==================== Private Helper Methods ====================
 
   private getCacheKey(
-    type: "all" | "daily",
+    type: "all" | "daily" | "progress",
     userId: string,
-    date?: Date
+    date?: Date,
+    challengeId?: string
   ): string {
     if (type === "all") {
       return `challenges:all:${userId}`;
+    }
+    if (type === "progress") {
+      return `challenges:progress:${userId}:${challengeId}`;
     }
     return `challenges:daily:${userId}:${date?.toISOString()}`;
   }

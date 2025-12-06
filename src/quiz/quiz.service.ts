@@ -244,6 +244,55 @@ export class QuizService {
   async submitQuiz(userId: string, quizId: string, dto: SubmitQuizDto) {
     this.logger.log(`User ${userId} submitting quiz ${quizId}`);
 
+    // Check for duplicate submission (within last 10 seconds)
+    const recentAttempt = await this.prisma.attempt.findFirst({
+      where: {
+        userId,
+        quizId,
+        completedAt: {
+          gte: new Date(Date.now() - 10000), // 10 seconds ago
+        },
+      },
+    });
+
+    if (recentAttempt) {
+      this.logger.warn(
+        `Duplicate submission detected for user ${userId}, quiz ${quizId}. Returning existing attempt.`
+      );
+      // Recalculate feedback for consistency, or return basic info.
+      // Since the client expects full stats, we should ideally return the same shape.
+      // However, re-calculating everything might be overkill.
+      // Let's just return the score and ID, and let the frontend handle it,
+      // OR simpler: just throw an error or handle it.
+      // But to be user friendly (idempotent), we should return success format.
+
+      // Let's reconstruct the response from the recent attempt
+      const questions =
+        ((
+          await this.prisma.quiz.findUnique({
+            where: { id: quizId },
+            select: { questions: true },
+          })
+        )?.questions as any[]) || [];
+
+      // Calculate basic feedback again (simplified)
+      const percentage = Math.round(
+        (recentAttempt.score / recentAttempt.totalQuestions) * 100
+      );
+      const correctAnswers = questions.map((q) => q.correctAnswer);
+
+      return {
+        attemptId: recentAttempt.id,
+        score: recentAttempt.score,
+        totalQuestions: recentAttempt.totalQuestions,
+        percentage,
+        correctAnswers,
+        feedback: {
+          message: "Quiz already submitted.", // Simple message for duplicate
+        },
+      };
+    }
+
     // First, try to find quiz owned by the user
     let quiz = await this.prisma.quiz.findFirst({
       where: { id: quizId, userId },
@@ -476,6 +525,35 @@ export class QuizService {
       default:
         return userAnswer === correctAnswer;
     }
+  }
+
+  async getAttemptById(attemptId: string, userId: string) {
+    const attempt = await this.prisma.attempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        quiz: {
+          select: {
+            id: true,
+            title: true,
+            topic: true,
+            difficulty: true,
+            questions: true,
+            quizType: true,
+            timeLimit: true,
+          },
+        },
+      },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException("Attempt not found");
+    }
+
+    if (attempt.userId !== userId) {
+      throw new NotFoundException("Attempt not found");
+    }
+
+    return attempt;
   }
 
   async getAttempts(userId: string, quizId?: string) {
